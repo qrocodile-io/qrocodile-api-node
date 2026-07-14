@@ -79,7 +79,7 @@ export interface paths {
     put?: never
     /**
      * Render a QR code (full design)
-     * @description Render a QR code from structured content and a full QrDesignConfig. Returns the image directly by default, or a JSON envelope when `response` is `json`. Requires Authorization: Bearer <key>. Despite using POST (to carry the design body), this is a safe, idempotent operation with no side effects — responses may be freely retried and cached.
+     * @description Render a QR code from structured content and a full QrDesignConfig. Returns the image bytes (SVG or PNG per `format`). Requires Authorization: Bearer <key>. Despite using POST (to carry the design body), this is a safe, idempotent operation with no side effects — responses may be freely retried and cached.
      */
     post: operations['createQr']
     delete?: never
@@ -150,6 +150,48 @@ export interface operations {
           }
         }
       }
+      /** @description Invalid email address. */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description This email already has an active key. */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Too many registration attempts. */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
     }
   }
   confirmKey: {
@@ -163,12 +205,31 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Default Response */
+      /** @description Email confirmed — the API key, shown exactly once. */
       200: {
         headers: {
           [name: string]: unknown
         }
-        content?: never
+        content: {
+          'application/json': {
+            apiKey: string
+          }
+          'text/html': string
+        }
+      }
+      /** @description Invalid or expired confirmation link. */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
       }
     }
   }
@@ -265,12 +326,71 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Default Response */
+      /** @description The rendered QR code image (SVG or PNG per `format`). */
       200: {
         headers: {
           [name: string]: unknown
         }
-        content?: never
+        content: {
+          'image/svg+xml': string
+          'image/png': string
+        }
+      }
+      /** @description Invalid content or design. */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Missing, invalid, or revoked API key. */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Content could not be encoded into a QR code. */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Rate limit exceeded. */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
       }
     }
   }
@@ -555,21 +675,75 @@ export interface operations {
           size?: number
           /** @default true */
           fixContrast?: boolean
-          /**
-           * @default image
-           * @enum {string}
-           */
-          response?: 'image' | 'json'
         }
       }
     }
     responses: {
-      /** @description Default Response */
+      /** @description The rendered QR code image (SVG or PNG per `format`). */
       200: {
         headers: {
           [name: string]: unknown
         }
-        content?: never
+        content: {
+          'image/svg+xml': string
+          'image/png': string
+        }
+      }
+      /** @description Invalid content or design. */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Missing, invalid, or revoked API key. */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Content could not be encoded into a QR code. */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Rate limit exceeded. */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
       }
     }
   }

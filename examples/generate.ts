@@ -36,18 +36,14 @@ const result = await qr.GET('/v1/qr', {
   parseAs: format === 'png' ? 'arrayBuffer' : 'text',
 })
 
-if (!result.response.ok) {
-  // The API declares no error-response schema (so `error` is typed `never`), but
-  // openapi-fetch still parses the { error: { code, message } } body into it at runtime.
-  const body = result.error as { error?: { message?: string } } | undefined
-  console.error(`✗ Render failed: ${body?.error?.message ?? `HTTP ${result.response.status}`}`)
+if (result.error) {
+  // `error` is the typed { error: { code, message } } envelope.
+  console.error(`✗ Render failed: ${result.error.error.message}`)
   process.exit(1)
 }
-const { data } = result
 
-// Render responses are raw image bytes (the API declares no typed body), so cast.
+// `data` is typed per parseAs: string for SVG, ArrayBuffer for PNG.
 const file = `qr.${format}`
-const bytes =
-  format === 'png' ? Buffer.from(data as unknown as ArrayBuffer) : (data as unknown as string)
+const bytes = format === 'png' ? Buffer.from(result.data as ArrayBuffer) : (result.data as string)
 await writeFile(file, bytes)
 console.error(`✓ Wrote ${file}  (content: ${content}, preset: ocean)`)
