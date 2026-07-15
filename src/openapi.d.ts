@@ -633,38 +633,46 @@ export interface operations {
                 }
             background?: string | 'transparent'
             margin?: number
-            logo?: {
-              /** @enum {string} */
-              id:
-                | 'youtube'
-                | 'instagram'
-                | 'facebook'
-                | 'x'
-                | 'linkedin'
-                | 'tiktok'
-                | 'snapchat'
-                | 'pinterest'
-                | 'threads'
-                | 'bluesky'
-                | 'whatsapp'
-                | 'telegram'
-                | 'discord'
-                | 'spotify'
-                | 'apple'
-                | 'twitch'
-                | 'website'
-                | 'email'
-                | 'phone'
-                | 'location'
-                | 'wifi'
-                | 'google'
-                | 'paypal'
-                | 'amazon'
-                | 'googleplay'
-                | 'github'
-              color: string
-              regionWidth?: number
-            }
+            logo?:
+              | {
+                  /** @enum {string} */
+                  id:
+                    | 'youtube'
+                    | 'instagram'
+                    | 'facebook'
+                    | 'x'
+                    | 'linkedin'
+                    | 'tiktok'
+                    | 'snapchat'
+                    | 'pinterest'
+                    | 'threads'
+                    | 'bluesky'
+                    | 'whatsapp'
+                    | 'telegram'
+                    | 'discord'
+                    | 'spotify'
+                    | 'apple'
+                    | 'twitch'
+                    | 'website'
+                    | 'email'
+                    | 'phone'
+                    | 'location'
+                    | 'wifi'
+                    | 'google'
+                    | 'paypal'
+                    | 'amazon'
+                    | 'googleplay'
+                    | 'github'
+                  color: string
+                  regionWidth?: number
+                }
+              | {
+                  data: string
+                  regionWidth?: number
+                  showModules?: boolean
+                  posX?: number
+                  posY?: number
+                }
             overdriveMode?: boolean
           }
           /**

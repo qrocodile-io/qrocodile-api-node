@@ -16,7 +16,8 @@
     "lint": "eslint src/",
     "codegen": "openapi-typescript http://localhost:3002/docs/json -o src/openapi.d.ts",
     "signup": "node examples/signup.ts",
-    "generate": "node examples/generate.ts"
+    "generate": "node examples/generate.ts",
+    "logo": "node examples/logo.ts"
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0"
