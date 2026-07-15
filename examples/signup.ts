@@ -34,9 +34,9 @@ function tokenFrom(input: string): string {
   }
 }
 
-// `error` is the typed { error: { code, message } } envelope, or undefined on success.
-function failMessage(result: { error?: { error: { message: string } } }): string {
-  return result.error?.error.message ?? 'unknown error'
+// The helpers throw QrApiError (extends Error) on an API error response.
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
 }
 
 const email = process.argv[2] ?? (await ask('Email: '))
@@ -46,12 +46,13 @@ if (!email) {
   process.exit(1)
 }
 
-const qr = createQrApiClient(baseUrl)
+const qr = createQrApiClient({ baseUrl })
 
 console.error(`Registering ${email} at ${baseUrl} …`)
-const registration = await qr.POST('/v1/keys', { body: { email } })
-if (registration.error) {
-  console.error(`✗ Registration failed: ${failMessage(registration)}`)
+try {
+  await qr.registerKey(email)
+} catch (err) {
+  console.error(`✗ Registration failed: ${errMessage(err)}`)
   rl?.close()
   process.exit(1)
 }
@@ -67,19 +68,16 @@ if (!token) {
   process.exit(0)
 }
 
-const confirmation = await qr.GET('/v1/keys/confirm', {
-  params: { query: { token } },
-  parseAs: 'json',
-  headers: { Accept: 'application/json' },
-})
-rl?.close()
-
-if (confirmation.error) {
-  console.error(`✗ Confirmation failed: ${failMessage(confirmation)}`)
+let apiKey: string
+try {
+  // The 200 documents both JSON and HTML, so `data` is a union — we asked for JSON.
+  apiKey = ((await qr.confirmKey(token)) as { apiKey: string }).apiKey
+} catch (err) {
+  rl?.close()
+  console.error(`✗ Confirmation failed: ${errMessage(err)}`)
   process.exit(1)
 }
+rl?.close()
 
-// The 200 documents both JSON and HTML, so `data` is a union — we asked for JSON.
-const { apiKey } = confirmation.data as { apiKey: string }
 console.error('\n✓ Your API key (store it now — it is not shown again):\n')
 console.log(apiKey) // stdout only, so it can be piped/captured

@@ -12,7 +12,7 @@ import { writeFile } from 'node:fs/promises'
 
 import { createQrApiClient } from '../src/index.ts'
 
-const baseUrl = process.env.QR_API_URL ?? 'https://api.qrocodile.io'
+const baseUrl = process.env.QR_API_URL // undefined → the client's default (api.qrocodile.io)
 const apiKey = process.env.QR_API_KEY
 if (!apiKey) {
   console.error(
@@ -27,23 +27,23 @@ const format = process.argv[3] === 'svg' ? 'svg' : 'png'
 // 'url' type would reject non-URL content).
 const type = /^https?:\/\//i.test(content) ? 'url' : 'text'
 
-const qr = createQrApiClient(baseUrl, apiKey)
+const qr = createQrApiClient({ apiKey, baseUrl })
 
 // `preset` (and module/finder style/logo ids) are typed literal unions — your editor
 // autocompletes the valid values. Swap 'ocean' for any preset the API supports.
-const result = await qr.GET('/v1/qr', {
-  params: { query: { content, type, format, preset: 'ocean' } },
-  parseAs: format === 'png' ? 'arrayBuffer' : 'text',
-})
+// The method name picks the output format, so there's no path or `parseAs` to get right —
+// the helper resolves to the image directly and throws QrApiError on an error response.
+const query = { content, type, preset: 'ocean' } as const
 
-if (result.error) {
-  // `error` is the typed { error: { code, message } } envelope.
-  console.error(`✗ Render failed: ${result.error.error.message}`)
+try {
+  const file = `qr.${format}`
+  if (format === 'png') {
+    await writeFile(file, Buffer.from(await qr.renderPng(query)))
+  } else {
+    await writeFile(file, await qr.renderSvg(query))
+  }
+  console.error(`✓ Wrote ${file}  (content: ${content}, preset: ocean)`)
+} catch (err) {
+  console.error(`✗ Render failed: ${err instanceof Error ? err.message : String(err)}`)
   process.exit(1)
 }
-
-// `data` is typed per parseAs: string for SVG, ArrayBuffer for PNG.
-const file = `qr.${format}`
-const bytes = format === 'png' ? Buffer.from(result.data as ArrayBuffer) : (result.data as string)
-await writeFile(file, bytes)
-console.error(`✓ Wrote ${file}  (content: ${content}, preset: ocean)`)

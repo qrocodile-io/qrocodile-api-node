@@ -29,9 +29,10 @@ pnpm --filter @pagebase/qr-api-client signup you@example.com
 **Or in code:**
 
 ```ts
-const qr = createQrApiClient('https://api.qrocodile.io')
-await qr.POST('/v1/keys', { body: { email: 'you@example.com' } })
-// → open the confirmation link from your inbox to reveal the key.
+const qr = createQrApiClient()
+await qr.registerKey('you@example.com')
+// → open the confirmation link from your inbox to reveal the key,
+//   or pass its token to qr.confirmKey(token) to fetch it programmatically.
 ```
 
 ## Render
@@ -39,28 +40,43 @@ await qr.POST('/v1/keys', { body: { email: 'you@example.com' } })
 ```ts
 import { createQrApiClient } from '@pagebase/qr-api-client'
 
-const qr = createQrApiClient('https://api.qrocodile.io', process.env.QR_API_KEY)
+// Base URL defaults to https://api.qrocodile.io — just pass your key.
+const qr = createQrApiClient({ apiKey: process.env.QR_API_KEY })
 
-// SVG (string) — pass parseAs: 'text'
-const { data: svg } = await qr.GET('/v1/qr', {
-  params: { query: { content: 'https://qrocodile.io', preset: 'ocean' } },
-  parseAs: 'text',
-})
+// SVG (string) from simple content + a preset
+const svg = await qr.renderSvg({ content: 'https://qrocodile.io', preset: 'ocean' })
 
-// PNG (Blob) with a full design — pass parseAs: 'blob'
-const { data: png, error } = await qr.POST('/v1/qr', {
-  body: {
-    content: { type: 'wifi', ssid: 'Cafe', password: 'latte123', encryption: 'WPA' },
-    design: { preset: 'classic', moduleColor: { type: 'linear', stops: ['#0d9488', '#111'] } },
-    format: 'png',
-  },
-  parseAs: 'blob',
+// PNG (ArrayBuffer) from a full design
+const png = await qr.renderDesignPng({
+  content: { type: 'wifi', ssid: 'Cafe', password: 'latte123', encryption: 'WPA' },
+  design: { preset: 'classic', moduleColor: { type: 'linear', stops: ['#0d9488', '#111'] } },
 })
 ```
 
-Render responses are raw image bytes, so **always pass `parseAs`** (`'text'` for SVG,
-`'blob'` / `'arrayBuffer'` for PNG). Errors come back as `{ error }` with the
-`{ error: { code, message } }` envelope.
+The method name picks the output — `renderSvg`/`renderDesignSvg` return a `string`,
+`renderPng`/`renderDesignPng` return an `ArrayBuffer` — so there's no path or `parseAs`
+to get right. `render*` cover the simple content + preset endpoint; `renderDesign*` take a
+full design config.
+
+Each helper resolves to the data directly and throws `QrApiError` (with `status` and
+`code`) on an API error response, so handle failures with `try/catch`:
+
+```ts
+import { createQrApiClient, QrApiError } from '@pagebase/qr-api-client'
+
+try {
+  const svg = await qr.renderSvg({ content: 'https://qrocodile.io', preset: 'ocean' })
+} catch (err) {
+  if (err instanceof QrApiError) console.error(err.status, err.code, err.message)
+}
+```
+
+Genuine network failures (offline, DNS, aborted) reject with the underlying `fetch` error
+instead. Prefer errors-as-values, or need an endpoint/option the helpers don't cover? Use
+`qr.raw` — the underlying typed `openapi-fetch` client, which returns the
+`{ data, error, response }` envelope.
+
+Point at another environment with `createQrApiClient({ apiKey, baseUrl: 'http://localhost:3002' })`.
 
 **Runnable example** — writes a QR image to a file:
 
