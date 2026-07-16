@@ -10,13 +10,13 @@
  *   QR_API_KEY=… pnpm --filter @pagebase/qr-api-client logo "https://qrocodile.io" whatsapp svg
  *   QR_API_URL=http://localhost:3002 QR_API_KEY=… pnpm --filter @pagebase/qr-api-client logo
  *
- * Uses the POST /v1/qr full-design path (renderDesign*), which takes a QrDesignConfig.
+ * Uses renderSvg/renderPng (POST /v1/qr), which take content plus a full QrDesignConfig.
  */
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { extname } from 'node:path'
 
-import { createQrApiClient, type RenderDesignBody } from '../src/index.ts'
+import { createQrApiClient, type RenderInput } from '../src/index.ts'
 
 const apiKey = process.env.QR_API_KEY
 if (!apiKey) {
@@ -38,7 +38,7 @@ const MIME_BY_EXT: Record<string, string> = {
 }
 
 // design.logo is a union: custom (base64 image) OR built-in (by id).
-type DesignLogo = NonNullable<NonNullable<RenderDesignBody['design']>['logo']>
+type DesignLogo = NonNullable<NonNullable<RenderInput['design']>['logo']>
 
 async function buildLogo(): Promise<DesignLogo> {
   if (existsSync(logoArg)) {
@@ -57,16 +57,16 @@ async function buildLogo(): Promise<DesignLogo> {
 const qr = createQrApiClient({ apiKey, baseUrl: process.env.QR_API_URL })
 
 try {
-  const body: RenderDesignBody = {
+  const body: RenderInput = {
     content,
     design: { preset: 'classic', logo: await buildLogo() },
   }
 
   const file = `qr-logo.${format}`
   if (format === 'png') {
-    await writeFile(file, Buffer.from(await qr.renderDesignPng(body)))
+    await writeFile(file, Buffer.from(await qr.renderPng(body)))
   } else {
-    await writeFile(file, await qr.renderDesignSvg(body))
+    await writeFile(file, await qr.renderSvg(body))
   }
   const kind = existsSync(logoArg) ? `custom logo ${logoArg}` : `built-in logo '${logoArg}'`
   console.error(`✓ Wrote ${file}  (content: ${content}, ${kind})`)

@@ -1,9 +1,9 @@
 import createClient from 'openapi-fetch'
 
+// The generated OpenAPI types are an internal implementation detail — used here to
+// derive our own types, but deliberately NOT re-exported, so consumers depend only on
+// the hand-written surface (createQrApiClient, RenderInput, QrApiError, …).
 import type { operations, paths } from './openapi.d.ts'
-
-export type { paths }
-export type { components, operations } from './openapi.d.ts'
 
 /** Default base URL of the hosted QRocodile QR Code API. */
 const DEFAULT_BASE_URL = 'https://api.qrocodile.io'
@@ -19,11 +19,13 @@ export interface QrApiClientOptions {
   baseUrl?: string | undefined
 }
 
-/** Query for the simple render endpoint (`GET /v1/qr`); `format` is set per method. */
-export type RenderQuery = Omit<NonNullable<operations['getQr']['parameters']['query']>, 'format'>
-
-/** Body for the full-design render endpoint (`POST /v1/qr`); `format` is set per method. */
-export type RenderDesignBody = Omit<
+/**
+ * Input for a render call (`POST /v1/qr`), minus `format` (chosen by the method).
+ * `content` is a string or a structured object (wifi, vcard…); `design` is the full
+ * QrDesignConfig (preset, module/finder styles, colors, gradients, logo…). Everything
+ * the simple `GET /v1/qr` endpoint can do is expressible here, plus more.
+ */
+export type RenderInput = Omit<
   operations['createQr']['requestBody']['content']['application/json'],
   'format'
 >
@@ -76,17 +78,17 @@ async function unwrap<T>(
  * output format by method name and the return type follows (SVG → `string`, PNG →
  * `ArrayBuffer`). Each helper resolves to the data directly and throws {@link QrApiError}
  * on an API error response, so you handle failures with `try/catch` (which also plays well
- * with TanStack Query / SWR). Reach for `.raw` when you want the untouched openapi-fetch
- * `{ data, error, response }` envelope, or an endpoint/option the helpers don't cover.
+ * with TanStack Query / SWR). The render helpers use `POST /v1/qr`, which supports every
+ * option; the cacheable `GET /v1/qr` variant has no method yet (add one if it's needed).
  *
  * @example
  * const qr = createQrApiClient({ apiKey: process.env.QR_API_KEY })
  *
- * // Simple content + preset → SVG string
- * const svg = await qr.renderSvg({ content: 'https://qrocodile.io', preset: 'ocean' })
+ * // Simple: content + a preset → SVG string
+ * const svg = await qr.renderSvg({ content: 'https://qrocodile.io', design: { preset: 'ocean' } })
  *
  * // Full design → PNG bytes
- * const png = await qr.renderDesignPng({
+ * const png = await qr.renderPng({
  *   content: { type: 'wifi', ssid: 'Cafe', password: 'latte123', encryption: 'WPA' },
  *   design: { preset: 'classic', moduleColor: { type: 'linear', stops: ['#0d9488', '#111'] } },
  * })
@@ -105,35 +107,19 @@ export function createQrApiClient(options: QrApiClientOptions = {}) {
   }
 
   return {
-    /** The underlying typed openapi-fetch client — an escape hatch for anything below. */
-    raw: client,
-
-    /** Render an SVG string from simple content + an optional preset (`GET /v1/qr`). */
-    renderSvg(query: RenderQuery) {
-      return unwrap(
-        client.GET('/v1/qr', { params: { query: { ...query, format: 'svg' } }, parseAs: 'text' }),
-      )
+    /**
+     * Render an SVG string (`POST /v1/qr`). Pass content plus an optional design:
+     * a bare `{ content: 'https://…' }` yields a plain code, and the full QrDesignConfig
+     * (presets, styles, colors, logo…) goes under `design`.
+     */
+    renderSvg(input: RenderInput) {
+      return unwrap(client.POST('/v1/qr', { body: { ...input, format: 'svg' }, parseAs: 'text' }))
     },
 
-    /** Render PNG bytes from simple content + an optional preset (`GET /v1/qr`). */
-    renderPng(query: RenderQuery) {
+    /** Render PNG bytes (`POST /v1/qr`). Same input as {@link renderSvg}. */
+    renderPng(input: RenderInput) {
       return unwrap(
-        client.GET('/v1/qr', {
-          params: { query: { ...query, format: 'png' } },
-          parseAs: 'arrayBuffer',
-        }),
-      )
-    },
-
-    /** Render an SVG string from structured content + a full design config (`POST /v1/qr`). */
-    renderDesignSvg(body: RenderDesignBody) {
-      return unwrap(client.POST('/v1/qr', { body: { ...body, format: 'svg' }, parseAs: 'text' }))
-    },
-
-    /** Render PNG bytes from structured content + a full design config (`POST /v1/qr`). */
-    renderDesignPng(body: RenderDesignBody) {
-      return unwrap(
-        client.POST('/v1/qr', { body: { ...body, format: 'png' }, parseAs: 'arrayBuffer' }),
+        client.POST('/v1/qr', { body: { ...input, format: 'png' }, parseAs: 'arrayBuffer' }),
       )
     },
 

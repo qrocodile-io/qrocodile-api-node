@@ -44,19 +44,20 @@ import { createQrApiClient } from '@pagebase/qr-api-client'
 const qr = createQrApiClient({ apiKey: process.env.QR_API_KEY })
 
 // SVG (string) from simple content + a preset
-const svg = await qr.renderSvg({ content: 'https://qrocodile.io', preset: 'ocean' })
+const svg = await qr.renderSvg({ content: 'https://qrocodile.io', design: { preset: 'ocean' } })
 
-// PNG (ArrayBuffer) from a full design
-const png = await qr.renderDesignPng({
+// PNG (ArrayBuffer) from structured content + a full design
+const png = await qr.renderPng({
   content: { type: 'wifi', ssid: 'Cafe', password: 'latte123', encryption: 'WPA' },
   design: { preset: 'classic', moduleColor: { type: 'linear', stops: ['#0d9488', '#111'] } },
 })
 ```
 
-The method name picks the output — `renderSvg`/`renderDesignSvg` return a `string`,
-`renderPng`/`renderDesignPng` return an `ArrayBuffer` — so there's no path or `parseAs`
-to get right. `render*` cover the simple content + preset endpoint; `renderDesign*` take a
-full design config.
+There are two render methods, one per output: `renderSvg` returns a `string`, `renderPng`
+returns an `ArrayBuffer` — so there's no path or `parseAs` to get right. Both take the same
+input: `content` (a string or a structured object like `wifi`/`vcard`) plus an optional
+`design` (the full QrDesignConfig). They call `POST /v1/qr`, which supports every option (the
+cacheable `GET /v1/qr` variant has no method yet).
 
 Each helper resolves to the data directly and throws `QrApiError` (with `status` and
 `code`) on an API error response, so handle failures with `try/catch`:
@@ -65,16 +66,14 @@ Each helper resolves to the data directly and throws `QrApiError` (with `status`
 import { createQrApiClient, QrApiError } from '@pagebase/qr-api-client'
 
 try {
-  const svg = await qr.renderSvg({ content: 'https://qrocodile.io', preset: 'ocean' })
+  const svg = await qr.renderSvg({ content: 'https://qrocodile.io', design: { preset: 'ocean' } })
 } catch (err) {
   if (err instanceof QrApiError) console.error(err.status, err.code, err.message)
 }
 ```
 
 Genuine network failures (offline, DNS, aborted) reject with the underlying `fetch` error
-instead. Prefer errors-as-values, or need an endpoint/option the helpers don't cover? Use
-`qr.raw` — the underlying typed `openapi-fetch` client, which returns the
-`{ data, error, response }` envelope.
+instead.
 
 Point at another environment with `createQrApiClient({ apiKey, baseUrl: 'http://localhost:3002' })`.
 
