@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/health': {
+  '/v1/health': {
     parameters: {
       query?: never
       header?: never
@@ -164,20 +164,6 @@ export interface operations {
           }
         }
       }
-      /** @description This email already has an active key. */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': {
-            error: {
-              code: string
-              message: string
-            }
-          }
-        }
-      }
       /** @description Too many registration attempts. */
       429: {
         headers: {
@@ -315,6 +301,8 @@ export interface operations {
           | 'vernissage'
           | 'comic-bricks'
           | 'windswept'
+          | 'woodwork'
+          | 'blotchy'
         size?: number
         margin?: number
         dark?: string
@@ -490,6 +478,8 @@ export interface operations {
               | 'vernissage'
               | 'comic-bricks'
               | 'windswept'
+              | 'woodwork'
+              | 'blotchy'
             /** @enum {string} */
             moduleStyleId?:
               | 'classic'
@@ -512,6 +502,8 @@ export interface operations {
               | 'ink-pen'
               | 'washi-tape'
               | 'comic-fries'
+              | 'woodwork'
+              | 'blotchy'
               | 'glitch'
               | 'grass'
               | 'halfmoon'
@@ -556,6 +548,8 @@ export interface operations {
               | 'drip'
               | 'eroded'
               | 'comic'
+              | 'woodwork'
+              | 'blotchy'
               | 'washi-tape'
               | 'glitch'
               | 'grass'
