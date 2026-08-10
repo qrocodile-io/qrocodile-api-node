@@ -651,6 +651,8 @@ export interface operations {
             finderStyleParams?: {
               [key: string]: number | string
             }
+            finderUseModuleStyle?: boolean
+            finderColorInherit?: boolean
             moduleColor?:
               | string
               | {
@@ -682,6 +684,7 @@ export interface operations {
               | 'lava'
               | 'group'
             paletteScale?: number
+            paletteDither?: number
             finderFrameColor?:
               | string
               | {
@@ -752,7 +755,6 @@ export interface operations {
                   posX?: number
                   posY?: number
                 }
-            overdriveMode?: boolean
           }
           /**
            * @default svg
