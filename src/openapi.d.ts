@@ -793,50 +793,6 @@ export interface operations {
                 fade?: number
               }
             }
-            animation?: {
-              tracks: {
-                property:
-                  | {
-                      /** @enum {string} */
-                      type: 'moduleParam'
-                      key: string
-                    }
-                  | {
-                      /** @enum {string} */
-                      type: 'finderParam'
-                      key: string
-                    }
-                  | {
-                      /** @enum {string} */
-                      type: 'gradientAngle'
-                    }
-                  | {
-                      /** @enum {string} */
-                      type: 'paletteScale'
-                    }
-                  | {
-                      /** @enum {string} */
-                      type: 'paletteDither'
-                    }
-                  | {
-                      /** @enum {string} */
-                      type: 'paletteRotate'
-                    }
-                  | {
-                      /** @enum {string} */
-                      type: 'paletteShift'
-                    }
-                keyframes: number[][]
-                /** @enum {string} */
-                easing?: 'linear' | 'easeInOut' | 'easeIn' | 'easeOut'
-                /** @enum {string} */
-                mode?: 'bounce' | 'continuous'
-              }[]
-              duration: number
-              /** @enum {string} */
-              repeat?: 'infinite' | 'once'
-              fps?: number
-            }
           }
           /**
            * @default svg
