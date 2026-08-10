@@ -761,8 +761,6 @@ export interface operations {
                   mode?: 'clear' | 'float' | 'fill'
                   halo?: number
                   fillInterior?: boolean
-                  /** @deprecated */
-                  showModules?: boolean
                   posX?: number
                   posY?: number
                 }
