@@ -747,12 +747,21 @@ export interface operations {
                     | 'github'
                   color: string
                   regionWidth?: number
+                  /** @enum {string} */
+                  mode?: 'clear' | 'float' | 'fill'
+                  halo?: number
+                  fillInterior?: boolean
                   posX?: number
                   posY?: number
                 }
               | {
                   data: string
                   regionWidth?: number
+                  /** @enum {string} */
+                  mode?: 'clear' | 'float' | 'fill'
+                  halo?: number
+                  fillInterior?: boolean
+                  /** @deprecated */
                   showModules?: boolean
                   posX?: number
                   posY?: number
