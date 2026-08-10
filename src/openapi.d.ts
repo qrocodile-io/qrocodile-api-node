@@ -747,6 +747,8 @@ export interface operations {
                     | 'github'
                   color: string
                   regionWidth?: number
+                  posX?: number
+                  posY?: number
                 }
               | {
                   data: string
@@ -755,6 +757,86 @@ export interface operations {
                   posX?: number
                   posY?: number
                 }
+            halo?: {
+              enabled?: boolean
+              /** @enum {string} */
+              mode?: 'composite' | 'unified'
+              quietZone?: number
+              spread?: number
+              margin?: number
+              density?: number
+              /** @enum {string} */
+              curve?: 'none' | 'linear' | 'ease' | 'steep'
+              /** @enum {string} */
+              falloff?: 'square' | 'squircle' | 'round'
+              cluster?: number
+              seed?: number
+              color?: {
+                /** @enum {string} */
+                mode?: 'inherit' | 'palette'
+                palette?: string[]
+                /** @enum {string} */
+                paletteMode?:
+                  | 'scatter'
+                  | 'horizontal'
+                  | 'vertical'
+                  | 'diagonal'
+                  | 'radial'
+                  | 'checkerboard'
+                  | 'spiral'
+                  | 'wave'
+                  | 'noise'
+                  | 'rings'
+                  | 'mandala'
+                  | 'lava'
+                  | 'group'
+                fade?: number
+              }
+            }
+            animation?: {
+              tracks: {
+                property:
+                  | {
+                      /** @enum {string} */
+                      type: 'moduleParam'
+                      key: string
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: 'finderParam'
+                      key: string
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: 'gradientAngle'
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: 'paletteScale'
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: 'paletteDither'
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: 'paletteRotate'
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: 'paletteShift'
+                    }
+                keyframes: number[][]
+                /** @enum {string} */
+                easing?: 'linear' | 'easeInOut' | 'easeIn' | 'easeOut'
+                /** @enum {string} */
+                mode?: 'bounce' | 'continuous'
+              }[]
+              duration: number
+              /** @enum {string} */
+              repeat?: 'infinite' | 'once'
+              fps?: number
+            }
           }
           /**
            * @default svg
