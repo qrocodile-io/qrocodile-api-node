@@ -18,7 +18,7 @@ npm i @pagebase/qr-api-client
 Every render needs a key. Register with an email, confirm via the link, and the key
 is shown once.
 
-**Interactive helper** — registers, then fetches the key once you paste the link:
+**Interactive helper** — registers, then prints the key once you paste the emailed code:
 
 ```bash
 pnpm --filter @pagebase/qr-api-client signup you@example.com
@@ -31,8 +31,8 @@ pnpm --filter @pagebase/qr-api-client signup you@example.com
 ```ts
 const qr = createQrApiClient()
 await qr.registerKey('you@example.com')
-// → open the confirmation link from your inbox to reveal the key,
-//   or pass its token to qr.confirmKey(token) to fetch it programmatically.
+// → a 6-digit code arrives by email; exchange it for the key, which is shown exactly once:
+const { apiKey } = await qr.confirmKey('123456', { email: 'you@example.com' })
 ```
 
 ## Render
@@ -46,18 +46,19 @@ const qr = createQrApiClient({ apiKey: process.env.QR_API_KEY })
 // SVG (string) from simple content + a preset
 const svg = await qr.renderSvg({ content: 'https://qrocodile.io', design: { preset: 'ocean' } })
 
-// PNG (ArrayBuffer) from structured content + a full design
+// PNG (ArrayBuffer) with a full design. Payload formats are strings you build yourself —
+// the API encodes `content` exactly as given.
 const png = await qr.renderPng({
-  content: { type: 'wifi', ssid: 'Cafe', password: 'latte123', encryption: 'WPA' },
+  content: 'WIFI:T:WPA;S:Cafe;P:latte123;;',
   design: { preset: 'classic', moduleColor: { type: 'linear', stops: ['#0d9488', '#111'] } },
 })
 ```
 
 There are two render methods, one per output: `renderSvg` returns a `string`, `renderPng`
 returns an `ArrayBuffer` — so there's no path or `parseAs` to get right. Both take the same
-input: `content` (a string or a structured object like `wifi`/`vcard`) plus an optional
-`design` (the full QrDesignConfig). They call `POST /v1/qr`, which supports every option (the
-cacheable `GET /v1/qr` variant has no method yet).
+input: `content` (the string to encode) plus an optional `design` (the full QrDesignConfig).
+They call `POST /v1/qr`, which supports every option (the `GET /v1/qr` variant has no method
+yet).
 
 Each helper resolves to the data directly and throws `QrApiError` (with `status` and
 `code`) on an API error response, so handle failures with `try/catch`:

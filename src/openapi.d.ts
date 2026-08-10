@@ -34,8 +34,8 @@ export interface paths {
     get?: never
     put?: never
     /**
-     * Register for an API key
-     * @description Start API-key signup for an email address. Sends a one-time confirmation link; no key is issued until the link is opened. Rate-limited per IP.
+     * Request an API key
+     * @description Start API-key signup for an email address. Emails a 6-digit verification code; no key is issued until the code is confirmed via POST /v1/keys/confirm. Rate-limited per IP.
      */
     post: operations['registerKey']
     delete?: never
@@ -51,13 +51,13 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /**
-     * Confirm email and reveal the API key
-     * @description Open the one-time link from the confirmation email to generate the API key. The plaintext key is shown exactly once (HTML page, or JSON with `Accept: application/json`).
-     */
-    get: operations['confirmKey']
+    get?: never
     put?: never
-    post?: never
+    /**
+     * Confirm the code and receive the API key
+     * @description Exchange the 6-digit code from the verification email for the API key. Identify the pending signup with either `email` or the `rid` from the email link. The key is returned exactly once — it is stored hashed and cannot be recovered. Five wrong attempts discard the pending signup.
+     */
+    post: operations['confirmKey']
     delete?: never
     options?: never
     head?: never
@@ -73,13 +73,13 @@ export interface paths {
     }
     /**
      * Render a QR code (simple)
-     * @description Render a QR code from a single content string and an optional preset. Returns the image directly. For structured content (wifi, vcard…) or full designs (palettes, gradients, logos), use POST /v1/qr. Requires Authorization: Bearer <key>.
+     * @description Render a QR code from a content string and an optional preset. The content is encoded exactly as given. Returns the image directly. For full designs (palettes, gradients, logos), use POST /v1/qr. Requires Authorization: Bearer <key>.
      */
     get: operations['getQr']
     put?: never
     /**
      * Render a QR code (full design)
-     * @description Render a QR code from structured content and a full QrDesignConfig. Returns the image bytes (SVG or PNG per `format`). Requires Authorization: Bearer <key>. Despite using POST (to carry the design body), this is a safe, idempotent operation with no side effects — responses may be freely retried and cached.
+     * @description Render a QR code from a content string and a full QrDesignConfig. Returns the image bytes (SVG or PNG per `format`). Requires Authorization: Bearer <key>. Despite using POST (to carry the design body), this is a safe, idempotent operation with no side effects — responses may be freely retried and cached.
      */
     post: operations['createQr']
     delete?: never
@@ -135,6 +135,11 @@ export interface operations {
         'application/json': {
           /** Format: email */
           email: string
+          /**
+           * @default en
+           * @enum {string}
+           */
+          lang?: 'en' | 'de'
         }
       }
     }
@@ -150,7 +155,7 @@ export interface operations {
           }
         }
       }
-      /** @description Invalid email address. */
+      /** @description Invalid email address, malformed code, or neither identifier supplied. */
       400: {
         headers: {
           [name: string]: unknown
@@ -164,7 +169,21 @@ export interface operations {
           }
         }
       }
-      /** @description Too many registration attempts. */
+      /** @description The code is wrong, expired, or the pending signup was burned by too many attempts. */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Rate limit exceeded. Carries `retry-after` (seconds to wait) plus `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` (seconds until the window resets). Successful responses carry the three `x-ratelimit-*` headers too, so a client can pace itself without ever provoking a 429. */
       429: {
         headers: {
           [name: string]: unknown
@@ -182,16 +201,23 @@ export interface operations {
   }
   confirmKey: {
     parameters: {
-      query: {
-        token: string
-      }
+      query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        'application/json': {
+          code: string
+          /** Format: email */
+          email?: string
+          rid?: string
+        }
+      }
+    }
     responses: {
-      /** @description Email confirmed — the API key, shown exactly once. */
+      /** @description Default Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -199,12 +225,40 @@ export interface operations {
         content: {
           'application/json': {
             apiKey: string
+            replaced: boolean
           }
-          'text/html': string
         }
       }
-      /** @description Invalid or expired confirmation link. */
+      /** @description Invalid email address, malformed code, or neither identifier supplied. */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description The code is wrong, expired, or the pending signup was burned by too many attempts. */
       401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Rate limit exceeded. Carries `retry-after` (seconds to wait) plus `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` (seconds until the window resets). Successful responses carry the three `x-ratelimit-*` headers too, so a client can pace itself without ever provoking a 429. */
+      429: {
         headers: {
           [name: string]: unknown
         }
@@ -223,7 +277,6 @@ export interface operations {
     parameters: {
       query: {
         content: string
-        type?: 'url' | 'text' | 'tel' | 'email' | 'sms'
         format?: 'svg' | 'png'
         preset?:
           | 'classic'
@@ -292,6 +345,9 @@ export interface operations {
           | 'facebook'
           | 'darkBush'
           | 'minecraft'
+          | 'architecture'
+          | 'candyBlocks'
+          | 'escher'
           | 'deepBlue'
           | 'oldFilm'
           | 'el-nino'
@@ -303,6 +359,10 @@ export interface operations {
           | 'windswept'
           | 'woodwork'
           | 'blotchy'
+          | 'morseCode'
+          | 'ripple'
+          | 'florist'
+          | 'boa'
         size?: number
         margin?: number
         dark?: string
@@ -324,7 +384,7 @@ export interface operations {
           'image/png': string
         }
       }
-      /** @description Invalid content or design. */
+      /** @description Content or design failed validation, or the format is unsupported. */
       400: {
         headers: {
           [name: string]: unknown
@@ -338,7 +398,7 @@ export interface operations {
           }
         }
       }
-      /** @description Missing, invalid, or revoked API key. */
+      /** @description API key missing, malformed, unknown, or revoked. */
       401: {
         headers: {
           [name: string]: unknown
@@ -352,7 +412,21 @@ export interface operations {
           }
         }
       }
-      /** @description Content could not be encoded into a QR code. */
+      /** @description Custom logo or requested PNG size over the cap. */
+      413: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Valid input that cannot be encoded — usually content too long for a QR code. */
       422: {
         headers: {
           [name: string]: unknown
@@ -366,8 +440,22 @@ export interface operations {
           }
         }
       }
-      /** @description Rate limit exceeded. */
+      /** @description Rate limit exceeded. Carries `retry-after` (seconds to wait) plus `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` (seconds until the window resets). Successful responses carry the three `x-ratelimit-*` headers too, so a client can pace itself without ever provoking a 429. */
       429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Render failure. Logged on our side. */
+      500: {
         headers: {
           [name: string]: unknown
         }
@@ -392,13 +480,7 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': {
-          content:
-            | string
-            | ({
-                type: string
-              } & {
-                [key: string]: string | number | boolean
-              })
+          content: string
           /** @default {} */
           design?: {
             /** @enum {string} */
@@ -469,6 +551,9 @@ export interface operations {
               | 'facebook'
               | 'darkBush'
               | 'minecraft'
+              | 'architecture'
+              | 'candyBlocks'
+              | 'escher'
               | 'deepBlue'
               | 'oldFilm'
               | 'el-nino'
@@ -480,6 +565,10 @@ export interface operations {
               | 'windswept'
               | 'woodwork'
               | 'blotchy'
+              | 'morseCode'
+              | 'ripple'
+              | 'florist'
+              | 'boa'
             /** @enum {string} */
             moduleStyleId?:
               | 'classic'
@@ -534,6 +623,8 @@ export interface operations {
               | 'overlay'
               | 'petals'
               | 'variedDots'
+              | 'ripple'
+              | 'isometric'
             moduleStyleParams?: {
               [key: string]: number | string
             }
@@ -541,28 +632,22 @@ export interface operations {
             finderStyleId?:
               | 'classic'
               | 'modern'
-              | 'brixx'
               | 'carved'
-              | 'chevron'
-              | 'doodle'
+              | 'scribble'
               | 'drip'
               | 'eroded'
               | 'comic'
-              | 'woodwork'
               | 'blotchy'
-              | 'washi-tape'
-              | 'glitch'
-              | 'grass'
-              | 'halfmoon'
+              | 'shifted'
+              | 'meadow'
               | 'leaf'
               | 'morphing'
-              | 'patchwork'
               | 'pill'
-              | 'puzzle'
-              | '3d'
               | 'sketchy'
               | 'stamp'
               | 'sticker'
+              | 'segmented'
+              | 'dotted'
             finderStyleParams?: {
               [key: string]: number | string
             }
@@ -691,7 +776,7 @@ export interface operations {
           'image/png': string
         }
       }
-      /** @description Invalid content or design. */
+      /** @description Content or design failed validation, or the format is unsupported. */
       400: {
         headers: {
           [name: string]: unknown
@@ -705,7 +790,7 @@ export interface operations {
           }
         }
       }
-      /** @description Missing, invalid, or revoked API key. */
+      /** @description API key missing, malformed, unknown, or revoked. */
       401: {
         headers: {
           [name: string]: unknown
@@ -719,7 +804,21 @@ export interface operations {
           }
         }
       }
-      /** @description Content could not be encoded into a QR code. */
+      /** @description Custom logo or requested PNG size over the cap. */
+      413: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Valid input that cannot be encoded — usually content too long for a QR code. */
       422: {
         headers: {
           [name: string]: unknown
@@ -733,8 +832,22 @@ export interface operations {
           }
         }
       }
-      /** @description Rate limit exceeded. */
+      /** @description Rate limit exceeded. Carries `retry-after` (seconds to wait) plus `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` (seconds until the window resets). Successful responses carry the three `x-ratelimit-*` headers too, so a client can pace itself without ever provoking a 429. */
       429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              code: string
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Render failure. Logged on our side. */
+      500: {
         headers: {
           [name: string]: unknown
         }

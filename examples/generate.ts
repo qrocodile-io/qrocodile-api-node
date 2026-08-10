@@ -5,8 +5,8 @@
  *   QR_API_URL=http://localhost:3002 QR_API_KEY=… pnpm --filter @pagebase/qr-api-client generate "hi" svg
  *
  * Args: [content] [format: svg|png]. Get a key with the `signup` example.
- * renderSvg/renderPng take content plus an optional design; for structured content
- * (wifi, vcard…) pass a typed `content` object — see the logo example and README.
+ * renderSvg/renderPng take the content string plus an optional design; the content is encoded
+ * exactly as given, so payload formats like `WIFI:T:WPA;S:…;;` are strings you build yourself.
  */
 import { writeFile } from 'node:fs/promises'
 
@@ -26,13 +26,12 @@ const format = process.argv[3] === 'svg' ? 'svg' : 'png'
 
 const qr = createQrApiClient({ apiKey, baseUrl })
 
-// URL-looking input uses the typed `url` builder; anything else is encoded as text.
 // `design.preset` (and style/logo ids) are typed literal unions — your editor
 // autocompletes the valid values. Swap 'ocean' for any preset the API supports.
 // The method name picks the output format, so there's no path or `parseAs` to get right —
 // the helper resolves to the image directly and throws QrApiError on an error response.
 const input: RenderInput = {
-  content: /^https?:\/\//i.test(content) ? { type: 'url', url: content } : content,
+  content,
   design: { preset: 'ocean' },
 }
 

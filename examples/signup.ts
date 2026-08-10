@@ -2,15 +2,17 @@
 /**
  * Interactive signup helper for the QRocodile QR Code API.
  *
- *   pnpm --filter @pagebase/qr-api-client signup [email]
+ *   pnpm --filter @pagebase/qr-api-client signup [email] [code]
  *   QR_API_URL=http://localhost:3002 pnpm --filter @pagebase/qr-api-client signup you@example.com
  *
- * Flow: register an email → you open the confirmation link from your inbox (or
- * paste it here) → the script fetches your key and prints it to stdout (so it's
- * pipeable: `signup you@example.com > key.txt`). All prompts/messages go to stderr.
+ * Flow: register an email → a 6-digit code arrives in your inbox → paste it here → the script
+ * prints your key to stdout (so it's pipeable: `signup you@example.com > key.txt`). All
+ * prompts and messages go to stderr.
  *
- * Non-interactive: pass the email as arg 1 and, once you have it, the confirmation
- * token/link as arg 2 to skip prompts entirely.
+ * Non-interactive: pass the email as arg 1 and, once you have it, the code as arg 2.
+ *
+ * The API emails a code rather than a link because mail-security appliances prefetch links and
+ * burn single-use tokens before a human ever clicks (docs/qrocodile-auth-concept.md).
  */
 import { stderr, stdin } from 'node:process'
 import { createInterface } from 'node:readline/promises'
@@ -25,13 +27,9 @@ async function ask(question: string): Promise<string> {
   return (await rl.question(question)).trim()
 }
 
-function tokenFrom(input: string): string {
-  const s = input.trim()
-  try {
-    return new URL(s).searchParams.get('token') ?? s
-  } catch {
-    return s // already a bare token
-  }
+/** Accepts the code on its own, or pasted out of the email's verify link. */
+function codeFrom(input: string): string {
+  return input.replace(/\D/g, '').slice(0, 6)
 }
 
 // The helpers throw QrApiError (extends Error) on an API error response.
@@ -41,7 +39,7 @@ function errMessage(err: unknown): string {
 
 const email = process.argv[2] ?? (await ask('Email: '))
 if (!email) {
-  console.error('An email address is required. Usage: signup <email>')
+  console.error('An email address is required. Usage: signup <email> [code]')
   rl?.close()
   process.exit(1)
 }
@@ -56,25 +54,23 @@ try {
   rl?.close()
   process.exit(1)
 }
-console.error('✓ Confirmation email sent. Open the link in your inbox to reveal the key,')
-console.error('  or paste it here and this script will fetch the key for you.')
+console.error('✓ Email sent. It carries a 6-digit code — enter it here to reveal your key.')
 
-const token = process.argv[3]
-  ? tokenFrom(process.argv[3])
-  : tokenFrom(await ask('Confirmation link or token: '))
-if (!token) {
-  console.error('No link provided — open it in your browser to see your key. Done.')
+const code = codeFrom(process.argv[3] ?? (await ask('6-digit code: ')))
+if (code.length !== 6) {
+  console.error('A 6-digit code is required. Re-run with the code once the email arrives.')
   rl?.close()
-  process.exit(0)
+  process.exit(1)
 }
 
 let apiKey: string
 try {
-  // The 200 documents both JSON and HTML, so `data` is a union — we asked for JSON.
-  apiKey = ((await qr.confirmKey(token)) as { apiKey: string }).apiKey
+  const result = await qr.confirmKey(code, { email })
+  apiKey = (result as { apiKey: string }).apiKey
 } catch (err) {
   rl?.close()
   console.error(`✗ Confirmation failed: ${errMessage(err)}`)
+  console.error('  Five wrong codes burn the pending signup — register again to get a new one.')
   process.exit(1)
 }
 rl?.close()

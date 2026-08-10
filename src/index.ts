@@ -21,9 +21,9 @@ export interface QrApiClientOptions {
 
 /**
  * Input for a render call (`POST /v1/qr`), minus `format` (chosen by the method).
- * `content` is a string or a structured object (wifi, vcard…); `design` is the full
- * QrDesignConfig (preset, module/finder styles, colors, gradients, logo…). Everything
- * the simple `GET /v1/qr` endpoint can do is expressible here, plus more.
+ * `content` is the string to encode, verbatim; `design` is the full QrDesignConfig
+ * (preset, module/finder styles, colors, gradients, logo…). Everything the simple
+ * `GET /v1/qr` endpoint can do is expressible here, plus more.
  */
 export type RenderInput = Omit<
   operations['createQr']['requestBody']['content']['application/json'],
@@ -79,7 +79,7 @@ async function unwrap<T>(
  * `ArrayBuffer`). Each helper resolves to the data directly and throws {@link QrApiError}
  * on an API error response, so you handle failures with `try/catch` (which also plays well
  * with TanStack Query / SWR). The render helpers use `POST /v1/qr`, which supports every
- * option; the cacheable `GET /v1/qr` variant has no method yet (add one if it's needed).
+ * option; the `GET /v1/qr` variant has no method yet (add one if it's needed).
  *
  * @example
  * const qr = createQrApiClient({ apiKey: process.env.QR_API_KEY })
@@ -87,9 +87,9 @@ async function unwrap<T>(
  * // Simple: content + a preset → SVG string
  * const svg = await qr.renderSvg({ content: 'https://qrocodile.io', design: { preset: 'ocean' } })
  *
- * // Full design → PNG bytes
+ * // Full design → PNG bytes. Payload formats like WIFI: are strings you build yourself.
  * const png = await qr.renderPng({
- *   content: { type: 'wifi', ssid: 'Cafe', password: 'latte123', encryption: 'WPA' },
+ *   content: 'WIFI:T:WPA;S:Cafe;P:latte123;;',
  *   design: { preset: 'classic', moduleColor: { type: 'linear', stops: ['#0d9488', '#111'] } },
  * })
  */
@@ -124,22 +124,25 @@ export function createQrApiClient(options: QrApiClientOptions = {}) {
     },
 
     /**
-     * Register an email for an API key (`POST /v1/keys`). A confirmation link is emailed;
-     * open it (or pass its token to `confirmKey`) to reveal the key exactly once.
+     * Register an email for an API key (`POST /v1/keys`). A 6-digit code is emailed; pass it to
+     * {@link confirmKey} to reveal the key, which is shown exactly once.
+     *
+     * The 202 is identical whether or not the address already has a key, so it cannot be used to
+     * probe which addresses are registered.
      */
-    registerKey(email: string) {
-      return unwrap(client.POST('/v1/keys', { body: { email } }))
+    registerKey(email: string, lang?: 'en' | 'de') {
+      return unwrap(client.POST('/v1/keys', { body: { email, ...(lang ? { lang } : {}) } }))
     },
 
-    /** Confirm a registration and retrieve the API key once (`GET /v1/keys/confirm`). */
-    confirmKey(token: string) {
-      return unwrap(
-        client.GET('/v1/keys/confirm', {
-          params: { query: { token } },
-          parseAs: 'json',
-          headers: { Accept: 'application/json' },
-        }),
-      )
+    /**
+     * Exchange the emailed code for the key (`POST /v1/keys/confirm`). Identify the pending
+     * signup by the address it was sent to, or by the `rid` the verification link carries.
+     *
+     * Registering an address that already has a key rotates it: confirming issues a fresh key
+     * and revokes the old one, and the old key keeps working until then.
+     */
+    confirmKey(code: string, identifier: { email: string } | { rid: string }) {
+      return unwrap(client.POST('/v1/keys/confirm', { body: { code, ...identifier } }))
     },
   }
 }
