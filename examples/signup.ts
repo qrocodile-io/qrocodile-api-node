@@ -54,7 +54,7 @@ try {
   rl?.close()
   process.exit(1)
 }
-console.error('✓ Email sent. It carries a 6-digit code — enter it here to reveal your key.')
+console.error('✓ Email sent. It carries a 6-digit code — enter it here to reveal your API key.')
 
 const code = codeFrom(process.argv[3] ?? (await ask('6-digit code: ')))
 if (code.length !== 6) {
