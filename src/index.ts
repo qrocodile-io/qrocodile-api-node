@@ -26,7 +26,7 @@ export interface QrApiClientOptions {
  * `GET /v1/qr` endpoint can do is expressible here, plus more.
  */
 export type RenderInput = Omit<
-  operations['createQr']['requestBody']['content']['application/json'],
+  operations['renderQrCodeWithDesign']['requestBody']['content']['application/json'],
   'format'
 >
 

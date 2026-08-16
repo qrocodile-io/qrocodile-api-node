@@ -35,7 +35,7 @@ export interface paths {
     put?: never
     /**
      * Request an API key
-     * @description Start API-key signup for an email address. Emails a 6-digit verification code; no key is issued until the code is confirmed via POST /v1/keys/confirm. Rate-limited per IP.
+     * @description Start API-key signup for an email address. Emails a 6-digit verification code; no API key is issued until the code is confirmed via POST /v1/keys/confirm. Rate-limited per IP.
      */
     post: operations['registerKey']
     delete?: never
@@ -55,7 +55,7 @@ export interface paths {
     put?: never
     /**
      * Confirm the code and receive the API key
-     * @description Exchange the 6-digit code from the verification email for the API key. Identify the pending signup with either `email` or the `rid` from the email link. The key is returned exactly once — it is stored hashed and cannot be recovered. Five wrong attempts discard the pending signup.
+     * @description Exchange the 6-digit code from the verification email for the API key. Identify the pending signup with either `email` or the `rid` from the email link. The API key is returned exactly once — it is stored hashed and cannot be recovered. Five wrong attempts discard the pending signup.
      */
     post: operations['confirmKey']
     delete?: never
@@ -73,15 +73,15 @@ export interface paths {
     }
     /**
      * Render a QR code (simple)
-     * @description Render a QR code from a content string and an optional preset. The content is encoded exactly as given. Returns the image directly. For full designs (palettes, gradients, logos), use POST /v1/qr. Requires Authorization: Bearer <key>.
+     * @description Render a QR code from a content string and an optional preset. The content is encoded exactly as given. Returns the image directly. For full designs (palettes, gradients, logos), use POST /v1/qr. Requires an API key: Authorization: Bearer qk_live_….
      */
-    get: operations['getQr']
+    get: operations['renderQrCode']
     put?: never
     /**
      * Render a QR code (full design)
-     * @description Render a QR code from a content string and a full QrDesignConfig. Returns the image bytes (SVG or PNG per `format`). Requires Authorization: Bearer <key>. Despite using POST (to carry the design body), this is a safe, idempotent operation with no side effects — responses may be freely retried and cached.
+     * @description Render a QR code from a content string and a full QrDesignConfig. Returns the image bytes (SVG or PNG per `format`). Requires an API key: Authorization: Bearer qk_live_…. Despite using POST (to carry the design body), this is a safe, idempotent operation with no side effects — responses may be freely retried and cached.
      */
-    post: operations['createQr']
+    post: operations['renderQrCodeWithDesign']
     delete?: never
     options?: never
     head?: never
@@ -273,7 +273,7 @@ export interface operations {
       }
     }
   }
-  getQr: {
+  renderQrCode: {
     parameters: {
       query: {
         content: string
@@ -348,6 +348,8 @@ export interface operations {
           | 'architecture'
           | 'candyBlocks'
           | 'escher'
+          | 'dither'
+          | 'ditherRainbow'
           | 'deepBlue'
           | 'oldFilm'
           | 'el-nino'
@@ -470,7 +472,7 @@ export interface operations {
       }
     }
   }
-  createQr: {
+  renderQrCodeWithDesign: {
     parameters: {
       query?: never
       header?: never
@@ -554,6 +556,8 @@ export interface operations {
               | 'architecture'
               | 'candyBlocks'
               | 'escher'
+              | 'dither'
+              | 'ditherRainbow'
               | 'deepBlue'
               | 'oldFilm'
               | 'el-nino'
@@ -600,6 +604,7 @@ export interface operations {
               | 'characters'
               | 'brixx'
               | 'wavy'
+              | 'dither'
               | 'megaShapes'
               | 'mosaic'
               | 'neighborAware'
@@ -745,6 +750,7 @@ export interface operations {
                     | 'amazon'
                     | 'googleplay'
                     | 'github'
+                    | 'kim'
                   color: string
                   regionWidth?: number
                   /** @enum {string} */
