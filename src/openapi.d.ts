@@ -376,7 +376,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description The rendered QR code image (SVG or PNG per `format`). */
+      /** @description The rendered QR code image — SVG or PNG per the requested `format`. The response `Content-Type` names the format actually returned and is authoritative. */
       200: {
         headers: {
           [name: string]: unknown
@@ -819,7 +819,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description The rendered QR code image (SVG or PNG per `format`). */
+      /** @description The rendered QR code image — SVG or PNG per the requested `format`. The response `Content-Type` names the format actually returned and is authoritative. */
       200: {
         headers: {
           [name: string]: unknown
