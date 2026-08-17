@@ -133,9 +133,13 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': {
-          /** Format: email */
+          /**
+           * Format: email
+           * @description The address the API key is issued to. The 6-digit verification code is sent here. Confirming again later rotates the key in place, so this address stays the account.
+           */
           email: string
           /**
+           * @description Language for the verification email.
            * @default en
            * @enum {string}
            */
@@ -209,9 +213,14 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': {
+          /** @description The 6-digit code from the verification email. Five wrong attempts void the pending signup and you have to start over. */
           code: string
-          /** Format: email */
+          /**
+           * Format: email
+           * @description The address the code was sent to. Provide either this or `rid`.
+           */
           email?: string
+          /** @description Reference from the link in the verification email (`?r=…`), so someone arriving that way need not retype their address. Provide either this or `email`. It selects the pending signup but authorizes nothing on its own — the code does that. */
           rid?: string
         }
       }
@@ -276,8 +285,11 @@ export interface operations {
   renderQrCode: {
     parameters: {
       query: {
+        /** @description The value encoded into the QR code, verbatim — usually a URL, but any string works, including payload formats such as `WIFI:T:WPA;S:Cafe;P:secret;;`, `mailto:…` or a vCard. The API does not assemble those formats for you. */
         content: string
+        /** @description Output format. This alone selects the response media type — the `Accept` header is not consulted. */
         format?: 'svg' | 'png'
+        /** @description A built-in design preset, which brings the module and finder styles along with its own colors. `bg` and `margin` always override it. `dark` fully repaints the pattern only for presets that draw their modules in a single color. Most carry a multi-color palette, which takes precedence, and then `dark` changes part of the design or nothing at all — recolor one of those with `modulePalette` on POST /v1/qr instead. */
         preset?:
           | 'classic'
           | 'modern'
@@ -365,9 +377,13 @@ export interface operations {
           | 'ripple'
           | 'florist'
           | 'boa'
+        /** @description Image width and height in pixels. Defaults to 300 for SVG and 1024 for PNG. */
         size?: number
+        /** @description Quiet zone around the QR code, in modules. One module is the minimum, so 0 and 1 both render a single-module zone. */
         margin?: number
+        /** @description Module (foreground) color, as `#rgb`, `#rrggbb` or `#rrggbbaa`. Defaults to black unless a preset sets it — see `preset` for when this takes effect. */
         dark?: string
+        /** @description Background color, as `#rgb`, `#rrggbb` or `#rrggbbaa`. Defaults to white unless a preset sets it. */
         bg?: string
       }
       header?: never
@@ -482,10 +498,17 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': {
+          /** @description The value encoded into the QR code, verbatim — usually a URL, but any string works, including payload formats such as `WIFI:T:WPA;S:Cafe;P:secret;;`, `mailto:…` or a vCard. The API does not assemble those formats for you. */
           content: string
-          /** @default {} */
+          /**
+           * @description The full design — module and finder styles, colors, logo and halo. The QR Designer on qrocodile.io produces exactly this object: design the QR code there, then use its “Copy JSON” button and paste the result here. One exception: an animated design also carries an `animation` field, which this endpoint rejects because it renders a single image — remove that field to render a still.
+           * @default {}
+           */
           design?: {
-            /** @enum {string} */
+            /**
+             * @description A built-in preset loaded as the starting point. Fields set alongside it override the preset’s own values, so a preset plus `moduleColor` is a recolored preset.
+             * @enum {string}
+             */
             preset?:
               | 'classic'
               | 'modern'
@@ -573,7 +596,10 @@ export interface operations {
               | 'ripple'
               | 'florist'
               | 'boa'
-            /** @enum {string} */
+            /**
+             * @description Shape the modules (the pattern) are drawn with. The enum lists every style this build can render.
+             * @enum {string}
+             */
             moduleStyleId?:
               | 'classic'
               | 'photo-overlay'
@@ -630,10 +656,14 @@ export interface operations {
               | 'variedDots'
               | 'ripple'
               | 'isometric'
+            /** @description Tuning parameters for the chosen style. Which keys are accepted depends on the style — the QR Designer exposes them as that style’s own sliders. */
             moduleStyleParams?: {
               [key: string]: number | string
             }
-            /** @enum {string} */
+            /**
+             * @description Shape the three corner finders are drawn with.
+             * @enum {string}
+             */
             finderStyleId?:
               | 'classic'
               | 'modern'
@@ -653,27 +683,46 @@ export interface operations {
               | 'sticker'
               | 'segmented'
               | 'dotted'
+            /** @description Tuning parameters for the chosen style. Which keys are accepted depends on the style — the QR Designer exposes them as that style’s own sliders. */
             finderStyleParams?: {
               [key: string]: number | string
             }
+            /** @description Let the module style draw the corner finders itself. Only effective for styles that can render finders, and the only way to express relief and 3D designs whose corners must stay depth-sorted with the pattern. Supersedes `finderStyleId`. */
             finderUseModuleStyle?: boolean
+            /** @description Corners take their per-cell color from the pattern instead of `finderFrameColor` and `finderEyeColor`. */
             finderColorInherit?: boolean
+            /** @description Color of the modules — a solid hex color or a gradient. */
             moduleColor?:
               | string
               | {
-                  /** @enum {string} */
+                  /**
+                   * @description Gradient geometry.
+                   * @enum {string}
+                   */
                   type: 'linear' | 'radial'
+                  /**
+                   * @description Angle of a linear gradient, in degrees. Ignored by a radial gradient.
+                   * @default 0
+                   */
                   angle?: number
+                  /** @description Two to sixteen color stops, spread evenly unless placed. A stop is either a color string or `{ color, offset }` with `offset` between 0 and 1. */
                   stops: (
                     | string
                     | {
+                        /** @description The stop’s color. */
                         color: string
+                        /** @description Where the stop sits along the gradient, 0 = start, 1 = end. */
                         offset: number
                       }
                   )[]
                 }
+            /** @description Draw the modules from several colors at once, arranged by `paletteMode`. Use this instead of `moduleColor` for multi-color patterns. */
             modulePalette?: string[]
-            /** @enum {string} */
+            /**
+             * @description How the palette colors are distributed across the modules.
+             * @default scatter
+             * @enum {string}
+             */
             paletteMode?:
               | 'scatter'
               | 'horizontal'
@@ -688,41 +737,83 @@ export interface operations {
               | 'mandala'
               | 'lava'
               | 'group'
+            /**
+             * @description Scale of the pattern that `paletteMode` lays over the modules.
+             * @default 1
+             */
             paletteScale?: number
+            /**
+             * @description Jitter of the color-sample position, in modules, which breaks hard palette bands into a grain, off at 0.
+             * @default 0
+             */
             paletteDither?: number
+            /** @description Color of the outer frame of each corner finder. */
             finderFrameColor?:
               | string
               | {
-                  /** @enum {string} */
+                  /**
+                   * @description Gradient geometry.
+                   * @enum {string}
+                   */
                   type: 'linear' | 'radial'
+                  /**
+                   * @description Angle of a linear gradient, in degrees. Ignored by a radial gradient.
+                   * @default 0
+                   */
                   angle?: number
+                  /** @description Two to sixteen color stops, spread evenly unless placed. A stop is either a color string or `{ color, offset }` with `offset` between 0 and 1. */
                   stops: (
                     | string
                     | {
+                        /** @description The stop’s color. */
                         color: string
+                        /** @description Where the stop sits along the gradient, 0 = start, 1 = end. */
                         offset: number
                       }
                   )[]
                 }
+            /** @description Color of the inner eye of each corner finder. */
             finderEyeColor?:
               | string
               | {
-                  /** @enum {string} */
+                  /**
+                   * @description Gradient geometry.
+                   * @enum {string}
+                   */
                   type: 'linear' | 'radial'
+                  /**
+                   * @description Angle of a linear gradient, in degrees. Ignored by a radial gradient.
+                   * @default 0
+                   */
                   angle?: number
+                  /** @description Two to sixteen color stops, spread evenly unless placed. A stop is either a color string or `{ color, offset }` with `offset` between 0 and 1. */
                   stops: (
                     | string
                     | {
+                        /** @description The stop’s color. */
                         color: string
+                        /** @description Where the stop sits along the gradient, 0 = start, 1 = end. */
                         offset: number
                       }
                   )[]
                 }
+            /**
+             * @description Background color, or `transparent` to leave it unpainted.
+             * @default #ffffff
+             */
             background?: string | 'transparent'
+            /**
+             * @description Quiet zone around the QR code, in modules. One module is the minimum, so 0 and 1 both render a single-module zone.
+             * @default 2
+             */
             margin?: number
+            /** @description A logo placed on the QR code: either a built-in icon by `id`, or your own artwork as base64 in `data`. Not both. */
             logo?:
               | {
-                  /** @enum {string} */
+                  /**
+                   * @description Which built-in icon to place. The enum lists every icon this build ships.
+                   * @enum {string}
+                   */
                   id:
                     | 'youtube'
                     | 'instagram'
@@ -751,44 +842,141 @@ export interface operations {
                     | 'googleplay'
                     | 'github'
                     | 'kim'
+                  /** @description Color the icon is recolored to. */
                   color: string
+                  /**
+                   * @description Logo width as a fraction of the QR code’s width, between 0.1 and 1. The height follows from the artwork’s aspect ratio.
+                   * @default 0.8
+                   */
                   regionWidth?: number
-                  /** @enum {string} */
+                  /**
+                   * @description How the modules behave around the logo. `clear` clears a plain rectangle behind it; `float` clears only where the logo is opaque, so the pattern flows around the silhouette — use it for logos with a transparent background; `fill` clears nothing and draws the modules behind the logo.
+                   * @default clear
+                   * @enum {string}
+                   */
                   mode?: 'clear' | 'float' | 'fill'
+                  /**
+                   * @description Extra cleared margin around the logo silhouette, in modules, which keeps floating modules off the logo’s edge. Float mode only.
+                   * @default 0.75
+                   */
                   halo?: number
+                  /**
+                   * @description Draw modules inside the logo’s enclosed gaps — the counter of an “o”, for instance — instead of leaving them clear. Float mode only.
+                   * @default false
+                   */
                   fillInterior?: boolean
+                  /**
+                   * @description Horizontal placement of the logo: 0 pushes it as far left as it goes, 0.5 centers it, 1 as far right. The logo stays fully inside the image at either extreme, so neither end crops it.
+                   * @default 0.5
+                   */
                   posX?: number
+                  /**
+                   * @description Vertical placement of the logo: 0 pushes it as far up as it goes, 0.5 centers it, 1 as far down. The logo stays fully inside the image at either extreme, so neither end crops it.
+                   * @default 0.5
+                   */
                   posY?: number
                 }
               | {
+                  /** @description Your own logo as a base64-encoded image — PNG, JPEG or SVG — either a bare base64 string or a `data:` URL, which is what the QR Designer’s “Copy JSON” emits. Any mime type declared in that URL is ignored: the real format is detected from the bytes. SVG is sanitized before it is drawn. Nothing is ever fetched over the network — an `https:` URL in this field is not downloaded, it just fails to decode. */
                   data: string
+                  /**
+                   * @description Logo width as a fraction of the QR code’s width, between 0.1 and 1. The height follows from the artwork’s aspect ratio.
+                   * @default 0.8
+                   */
                   regionWidth?: number
-                  /** @enum {string} */
+                  /**
+                   * @description How the modules behave around the logo. `clear` clears a plain rectangle behind it; `float` clears only where the logo is opaque, so the pattern flows around the silhouette — use it for logos with a transparent background; `fill` clears nothing and draws the modules behind the logo.
+                   * @default clear
+                   * @enum {string}
+                   */
                   mode?: 'clear' | 'float' | 'fill'
+                  /**
+                   * @description Extra cleared margin around the logo silhouette, in modules, which keeps floating modules off the logo’s edge. Float mode only.
+                   * @default 0.75
+                   */
                   halo?: number
+                  /**
+                   * @description Draw modules inside the logo’s enclosed gaps — the counter of an “o”, for instance — instead of leaving them clear. Float mode only.
+                   * @default false
+                   */
                   fillInterior?: boolean
+                  /**
+                   * @description Horizontal placement of the logo: 0 pushes it as far left as it goes, 0.5 centers it, 1 as far right. The logo stays fully inside the image at either extreme, so neither end crops it.
+                   * @default 0.5
+                   */
                   posX?: number
+                  /**
+                   * @description Vertical placement of the logo: 0 pushes it as far up as it goes, 0.5 centers it, 1 as far down. The logo stays fully inside the image at either extreme, so neither end crops it.
+                   * @default 0.5
+                   */
                   posY?: number
                 }
+            /** @description Decoration scattered around the QR code, drawn with the design’s own module style. */
             halo?: {
+              /** @description Draw the halo. Sending a `halo` object at all switches it on, so this need only be set to turn one off: `false` keeps the settings below while suppressing the decoration. Omit the whole `halo` object for a design that has none. */
               enabled?: boolean
-              /** @enum {string} */
+              /**
+               * @description How the halo and the QR code are drawn together. `composite` (layered) leaves the code exactly as it looks without a halo. `unified` (integrated) merges both into one drawing, so 3D styles cast shadows across the halo — at the cost of the code itself looking slightly different.
+               * @default composite
+               * @enum {string}
+               */
               mode?: 'composite' | 'unified'
+              /**
+               * @description The total light ring the viewer sees between the pattern and the halo, in modules. The code’s own `margin` counts toward it rather than adding to it, so a value at or below `margin` leaves no gap at all — with the default margin of 2, the halo starts right at the code until this reaches 3.
+               * @default 1
+               */
               quietZone?: number
+              /**
+               * @description How far the halo reaches beyond the quiet zone, in modules. One module is the minimum, so 0 renders as 1.
+               * @default 8
+               */
               spread?: number
+              /**
+               * @description Plain background kept outside the halo, in modules.
+               * @default 0
+               */
               margin?: number
+              /**
+               * @description Peak fraction of cells filled, measured nearest the code.
+               * @default 0.65
+               */
               density?: number
-              /** @enum {string} */
+              /**
+               * @description How quickly the halo thins out with distance from the code.
+               * @default ease
+               * @enum {string}
+               */
               curve?: 'none' | 'linear' | 'ease' | 'steep'
-              /** @enum {string} */
+              /**
+               * @description Shape the halo fades along — square, soft square, or round.
+               * @default square
+               * @enum {string}
+               */
               falloff?: 'square' | 'squircle' | 'round'
+              /**
+               * @description How much the halo modules clump together: 0 scatters them at random, 1 gathers them into smooth clumps.
+               * @default 0.3
+               */
               cluster?: number
+              /**
+               * @description Scatter seed. The same seed redraws the same halo, so a render is reproducible; change it for a different arrangement of the same settings.
+               * @default 0
+               */
               seed?: number
+              /** @description Where the halo takes its colors from. */
               color?: {
-                /** @enum {string} */
+                /**
+                 * @description Where the halo takes its colors from: `inherit` reuses the code’s own pattern colors, `palette` uses the `palette` below.
+                 * @default inherit
+                 * @enum {string}
+                 */
                 mode?: 'inherit' | 'palette'
+                /** @description Colors the halo is drawn from when `mode` is `palette`. */
                 palette?: string[]
-                /** @enum {string} */
+                /**
+                 * @description How the halo’s palette colors are distributed. Defaults to the code’s own `paletteMode`, or `scatter` when that is unset too.
+                 * @enum {string}
+                 */
                 paletteMode?:
                   | 'scatter'
                   | 'horizontal'
@@ -803,17 +991,26 @@ export interface operations {
                   | 'mandala'
                   | 'lava'
                   | 'group'
+                /**
+                 * @description How far the outermost halo modules fade toward the background. 0 is no fade.
+                 * @default 0
+                 */
                 fade?: number
               }
             }
           }
           /**
+           * @description Output format. This alone selects the response media type — the `Accept` header is not consulted.
            * @default svg
            * @enum {string}
            */
           format?: 'svg' | 'png'
+          /** @description Image width and height in pixels. Defaults to 300 for SVG and 1024 for PNG. */
           size?: number
-          /** @default true */
+          /**
+           * @description Nudge low-contrast color combinations apart so the QR code stays scannable. Turn it off to get the colors exactly as given.
+           * @default true
+           */
           fixContrast?: boolean
         }
       }
