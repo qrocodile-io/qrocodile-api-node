@@ -1026,7 +1026,7 @@ export interface operations {
           'image/png': string
         }
       }
-      /** @description Content or design failed validation, or the format is unsupported. */
+      /** @description Content or design failed validation, or the format is unsupported. Unlike the GET query, this body is strict: an unrecognized key is an error rather than ignored, `animation` included. */
       400: {
         headers: {
           [name: string]: unknown
