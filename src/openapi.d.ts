@@ -73,7 +73,7 @@ export interface paths {
     }
     /**
      * Render a QR code (simple)
-     * @description Render a QR code from a content string, plus a preset and a few colors if you want them. The content is encoded exactly as given, and the image itself is the response body. For a full design — palettes, gradients, logos, halos — use POST /v1/qr.
+     * @description Render a QR code from a content string, plus a preset and a few colors if you want them. The content is encoded exactly as given, and the image itself is the response body. Colors too close in contrast to scan reliably are nudged apart, always: POST /v1/qr can switch that off with `fixContrast`, this route cannot. For a full design — palettes, gradients, logos, halos — use POST /v1/qr.
      */
     get: operations['renderQrCode']
     put?: never
@@ -613,6 +613,7 @@ export interface operations {
           | 'boa'
           | 'creeper'
           | 'bats'
+          | 'flourish'
         /** @description Image width and height in pixels. Defaults to 300 for SVG and 1024 for PNG. */
         size?: number
         /** @description Quiet zone around the QR code, in modules. One module is the minimum, so 0 and 1 both render a single-module zone. */
@@ -637,8 +638,6 @@ export interface operations {
           'x-ratelimit-remaining'?: number
           /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
           'x-ratelimit-reset'?: number
-          /** @description Always `public, max-age=3600`. The same content and design always produce the same image, so the response is safe to cache for an hour. */
-          'cache-control'?: string
           [name: string]: unknown
         }
         content: {
@@ -925,6 +924,7 @@ export interface operations {
               | 'boa'
               | 'creeper'
               | 'bats'
+              | 'flourish'
             /**
              * @description Shape the modules (the pattern) are drawn with. The enum lists every style this build can render.
              * @enum {string}
@@ -955,6 +955,7 @@ export interface operations {
               | 'glitch'
               | 'grass'
               | 'halfmoon'
+              | 'flourish'
               | 'spooky'
               | 'leaves'
               | 'characters'
@@ -1355,8 +1356,6 @@ export interface operations {
           'x-ratelimit-remaining'?: number
           /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
           'x-ratelimit-reset'?: number
-          /** @description Always `public, max-age=3600`. The same content and design always produce the same image, so the response is safe to cache for an hour. */
-          'cache-control'?: string
           [name: string]: unknown
         }
         content: {
