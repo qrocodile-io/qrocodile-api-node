@@ -618,9 +618,9 @@ export interface operations {
         size?: number
         /** @description Quiet zone around the QR code, in modules. One module is the minimum, so 0 and 1 both render a single-module zone. */
         margin?: number
-        /** @description Module (foreground) color, as `#rgb`, `#rrggbb` or `#rrggbbaa`. Defaults to black unless a preset sets it — see `preset` for when this takes effect. For a gradient or a multi-color palette, use POST /v1/qr. */
+        /** @description Module (foreground) color, as `#rgb`, `#rrggbb` or `#rrggbbaa`. A preset sets its own — see `preset` for when this overrides it. For a gradient or a multi-color palette, use POST /v1/qr. */
         moduleColor?: string
-        /** @description Background color, as `#rgb`, `#rrggbb` or `#rrggbbaa`, or `transparent` to leave it unpainted. Defaults to white unless a preset sets it. */
+        /** @description Background color, as `#rgb`, `#rrggbb` or `#rrggbbaa`, or `transparent` to leave it unpainted. A preset sets its own, which this overrides. */
         background?: string | 'transparent'
       }
       header?: never
@@ -1022,7 +1022,10 @@ export interface operations {
             finderUseModuleStyle?: boolean
             /** @description Corners take their per-cell color from the pattern instead of `finderFrameColor` and `finderEyeColor`. */
             finderColorInherit?: boolean
-            /** @description Color of the modules — a solid hex color or a gradient. */
+            /**
+             * @description Color of the modules — a solid hex color or a gradient.
+             * @default #000000
+             */
             moduleColor?:
               | string
               | {
