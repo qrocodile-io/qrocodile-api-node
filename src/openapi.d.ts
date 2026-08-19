@@ -35,7 +35,7 @@ export interface paths {
     put?: never
     /**
      * Request an API key
-     * @description Start API-key signup for an email address. Emails a 6-digit verification code; no API key is issued until the code is confirmed via POST /v1/keys/confirm. Rate-limited per IP.
+     * @description Start API-key signup for an email address. Emails a 6-digit verification code, valid for 24 hours; no API key is issued until the code is confirmed via POST /v1/keys/confirm. Asking again for an address that already has a key is how you replace a lost one — confirming rotates it in place. A repeat request within two minutes sends no second email, so an impatient retry cannot invalidate the code that just arrived. Rate-limited to five requests per hour per IP address.
      */
     post: operations['registerKey']
     delete?: never
@@ -55,7 +55,7 @@ export interface paths {
     put?: never
     /**
      * Confirm the code and receive the API key
-     * @description Exchange the 6-digit code from the verification email for the API key. Identify the pending signup with either `email` or the `rid` from the email link. The API key is returned exactly once — it is stored hashed and cannot be recovered. Five wrong attempts discard the pending signup.
+     * @description Exchange the 6-digit code from the verification email for the API key. Identify the pending signup with either `email` or the `rid` from the email link. The API key is returned exactly once — it is stored hashed and cannot be recovered. Five wrong attempts discard the pending signup. If the address already had a key, this replaces it and the old one stops working immediately.
      */
     post: operations['confirmKey']
     delete?: never
@@ -73,13 +73,13 @@ export interface paths {
     }
     /**
      * Render a QR code (simple)
-     * @description Render a QR code from a content string and an optional preset. The content is encoded exactly as given. Returns the image directly. For full designs (palettes, gradients, logos), use POST /v1/qr. Requires an API key: Authorization: Bearer qk_live_….
+     * @description Render a QR code from a content string, plus a preset and a few colors if you want them. The content is encoded exactly as given, and the image itself is the response body. For a full design — palettes, gradients, logos, halos — use POST /v1/qr.
      */
     get: operations['renderQrCode']
     put?: never
     /**
      * Render a QR code (full design)
-     * @description Render a QR code from a content string and a full QrDesignConfig. Returns the image bytes (SVG or PNG per `format`). Requires an API key: Authorization: Bearer qk_live_…. Despite using POST (to carry the design body), this is a safe, idempotent operation with no side effects — responses may be freely retried and cached.
+     * @description Render a QR code from a content string and a full design — the object the QR Designer’s “Copy JSON” button produces (see the `design` field for how to get it). Returns the image bytes. Despite the POST verb, which is here only to carry the body, this is a safe and idempotent operation with no side effects: a response may be cached, and a request may be retried — though every retry spends one of the minute’s sixty.
      */
     post: operations['renderQrCodeWithDesign']
     delete?: never
@@ -109,14 +109,16 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Default Response */
+      /** @description The API is up. This says nothing about the database — nothing here connects to it — so it is a liveness check, not a readiness one. */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
           'application/json': {
+            /** @description Always `ok`. A process that cannot answer is down. */
             status: string
+            /** @description When the API answered, as an ISO 8601 timestamp in UTC. */
             timestamp: string
           }
         }
@@ -148,54 +150,153 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Default Response */
+      /** @description The signup was accepted, and the code is on its way if the address can receive it. Deliberately identical whether or not that address already has a key, so this endpoint cannot be used to find out who holds an account — which also means it is not a delivery receipt. If no code arrives, the address was undeliverable or the mail is still in flight. */
       202: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
+            /** @description A sentence to show a human. Not worth branching on — it is the same sentence in every case. */
             message: string
           }
         }
       }
-      /** @description Invalid email address, malformed code, or neither identifier supplied. */
+      /** @description The email address is missing or not an address. */
       400: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description The code is wrong, expired, or the pending signup was burned by too many attempts. */
-      401: {
+      /** @description The request body arrived with a `Content-Type` the API has no parser for. Send `application/json`. */
+      415: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description Rate limit exceeded. Carries `retry-after` (seconds to wait) plus `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` (seconds until the window resets). Successful responses carry the three `x-ratelimit-*` headers too, so a client can pace itself without ever provoking a 429. */
+      /** @description Rate limit exceeded. Signup is capped per IP address — five key requests and twenty confirmation attempts per hour. See the response headers below for how long to wait. */
       429: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
+          /** @description Seconds to wait before retrying. Sent only with a 429. */
+          'retry-after'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Something failed on our side — including a mail server that would not accept the verification email, in which case no code was sent and the request is worth retrying. */
+      500: {
+        headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
@@ -226,55 +327,188 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Default Response */
+      /** @description The code was correct. The key is in the body, for the only time. */
       200: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
+            /** @description The API key, in full, the only time it is ever shown. It is stored as a SHA-256 hash, so it cannot be recovered or displayed again — store it before you discard the response. */
             apiKey: string
+            /** @description Whether this address already had a key. `true` means the previous one stopped working the moment this one was issued, so anything still using it now gets a 401. `false` is a first-time signup. */
             replaced: boolean
           }
         }
       }
-      /** @description Invalid email address, malformed code, or neither identifier supplied. */
+      /** @description The code is malformed, the email address is not an address, or neither identifier was supplied. */
       400: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description The code is wrong, expired, or the pending signup was burned by too many attempts. */
+      /** @description The code is wrong, expired, or the pending signup was burned by too many attempts. One message covers all three on purpose, so a wrong guess reveals nothing about which part was wrong. */
       401: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description Rate limit exceeded. Carries `retry-after` (seconds to wait) plus `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` (seconds until the window resets). Successful responses carry the three `x-ratelimit-*` headers too, so a client can pace itself without ever provoking a 429. */
-      429: {
+      /** @description The request body arrived with a `Content-Type` the API has no parser for. Send `application/json`. */
+      415: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Rate limit exceeded. Signup is capped per IP address — five key requests and twenty confirmation attempts per hour. See the response headers below for how long to wait. */
+      429: {
+        headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
+          /** @description Seconds to wait before retrying. Sent only with a 429. */
+          'retry-after'?: number
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Something failed on our side — including a mail server that would not accept the verification email, in which case no code was sent and the request is worth retrying. */
+      500: {
+        headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
@@ -285,11 +519,11 @@ export interface operations {
   renderQrCode: {
     parameters: {
       query: {
-        /** @description The value encoded into the QR code, verbatim — usually a URL, but any string works, including payload formats such as `WIFI:T:WPA;S:Cafe;P:secret;;`, `mailto:…` or a vCard. The API does not assemble those formats for you. */
+        /** @description The value encoded into the QR code, verbatim — usually a URL, but any string works, including payload formats such as `WIFI:T:WPA;S:Cafe;P:secret;;`, `mailto:…` or a vCard. The API does not assemble those formats for you. The 4,096-character cap is a safety bound, not the real ceiling: a QR code holds roughly 2,300 bytes at most, and content past what the encoder can fit comes back as a 422 rather than an image. */
         content: string
         /** @description Output format. This alone selects the response media type — the `Accept` header is not consulted. */
         format?: 'svg' | 'png'
-        /** @description A built-in design preset, which brings the module and finder styles along with its own colors. `bg` and `margin` always override it. `dark` fully repaints the pattern only for presets that draw their modules in a single color. Most carry a multi-color palette, which takes precedence, and then `dark` changes part of the design or nothing at all — recolor one of those with `modulePalette` on POST /v1/qr instead. */
+        /** @description A built-in design preset, which brings the module and finder styles along with its own colors. Every preset is shown, by name, in the [QR Designer](https://qrocodile.io/en/) — the enum here lists the IDs but not what they look like. `background` and `margin` always override it. `moduleColor` fully repaints the pattern only for presets that draw their modules in a single color. Most carry a multi-color palette, which takes precedence, and then `moduleColor` changes part of the design or nothing at all — recolor one of those with `modulePalette` on POST /v1/qr instead. */
         preset?:
           | 'classic'
           | 'modern'
@@ -377,14 +611,16 @@ export interface operations {
           | 'ripple'
           | 'florist'
           | 'boa'
+          | 'creeper'
+          | 'bats'
         /** @description Image width and height in pixels. Defaults to 300 for SVG and 1024 for PNG. */
         size?: number
         /** @description Quiet zone around the QR code, in modules. One module is the minimum, so 0 and 1 both render a single-module zone. */
         margin?: number
-        /** @description Module (foreground) color, as `#rgb`, `#rrggbb` or `#rrggbbaa`. Defaults to black unless a preset sets it — see `preset` for when this takes effect. */
-        dark?: string
-        /** @description Background color, as `#rgb`, `#rrggbb` or `#rrggbbaa`. Defaults to white unless a preset sets it. */
-        bg?: string
+        /** @description Module (foreground) color, as `#rgb`, `#rrggbb` or `#rrggbbaa`. Defaults to black unless a preset sets it — see `preset` for when this takes effect. For a gradient or a multi-color palette, use POST /v1/qr. */
+        moduleColor?: string
+        /** @description Background color, as `#rgb`, `#rrggbb` or `#rrggbbaa`, or `transparent` to leave it unpainted. Defaults to white unless a preset sets it. */
+        background?: string | 'transparent'
       }
       header?: never
       path?: never
@@ -395,6 +631,14 @@ export interface operations {
       /** @description The rendered QR code image — SVG or PNG per the requested `format`. The response `Content-Type` names the format actually returned and is authoritative. */
       200: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
+          /** @description Always `public, max-age=3600`. The same content and design always produce the same image, so the response is safe to cache for an hour. */
+          'cache-control'?: string
           [name: string]: unknown
         }
         content: {
@@ -402,15 +646,34 @@ export interface operations {
           'image/png': string
         }
       }
-      /** @description Content or design failed validation, or the format is unsupported. */
+      /** @description A parameter failed validation, or the JSON body could not be parsed. */
       400: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
@@ -419,68 +682,132 @@ export interface operations {
       /** @description API key missing, malformed, unknown, or revoked. */
       401: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description Custom logo or requested PNG size over the cap. */
-      413: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': {
-            error: {
-              code: string
-              message: string
-            }
-          }
-        }
-      }
-      /** @description Valid input that cannot be encoded — usually content too long for a QR code. */
+      /** @description Valid input that cannot be encoded — in practice, content too long for a QR code. A QR code holds roughly 2,300 bytes at most, well under the 4,096 characters `content` accepts. */
       422: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description Rate limit exceeded. Carries `retry-after` (seconds to wait) plus `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` (seconds until the window resets). Successful responses carry the three `x-ratelimit-*` headers too, so a client can pace itself without ever provoking a 429. */
+      /** @description Rate limit exceeded — renders are capped at 60 per minute per API key. See the response headers below for how long to wait. The `x-ratelimit-*` three come back on every response, successful ones included, so a client can pace itself without ever provoking this. */
       429: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
+          /** @description Seconds to wait before retrying. Sent only with a 429. */
+          'retry-after'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description Render failure. Logged on our side. */
+      /** @description Render failure. Logged on our side, deliberately without the content or design that caused it — so if you hit one, tell us what you sent. */
       500: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
@@ -498,10 +825,10 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': {
-          /** @description The value encoded into the QR code, verbatim — usually a URL, but any string works, including payload formats such as `WIFI:T:WPA;S:Cafe;P:secret;;`, `mailto:…` or a vCard. The API does not assemble those formats for you. */
+          /** @description The value encoded into the QR code, verbatim — usually a URL, but any string works, including payload formats such as `WIFI:T:WPA;S:Cafe;P:secret;;`, `mailto:…` or a vCard. The API does not assemble those formats for you. The 4,096-character cap is a safety bound, not the real ceiling: a QR code holds roughly 2,300 bytes at most, and content past what the encoder can fit comes back as a 422 rather than an image. */
           content: string
           /**
-           * @description The full design — module and finder styles, colors, logo and halo. The QR Designer on qrocodile.io produces exactly this object: design the QR code there, then use its “Copy JSON” button and paste the result here. One exception: an animated design also carries an `animation` field, which this endpoint rejects because it renders a single image — remove that field to render a still.
+           * @description The full design — module and finder styles, colors, logo and halo. The [QR Designer](https://qrocodile.io/en/) produces exactly this object: build the QR code there, open the encoded-content bar with the chevron at the bottom right of the preview, then choose “Copy JSON” and paste the result here. Every ID and style parameter is also tabulated on the [API page](https://qrocodile.io/en/qr-code-api/). One exception: an animated design also carries an `animation` field, which this endpoint rejects because it renders a single image — remove that field to render a still.
            * @default {}
            */
           design?: {
@@ -596,6 +923,8 @@ export interface operations {
               | 'ripple'
               | 'florist'
               | 'boa'
+              | 'creeper'
+              | 'bats'
             /**
              * @description Shape the modules (the pattern) are drawn with. The enum lists every style this build can render.
              * @enum {string}
@@ -626,6 +955,7 @@ export interface operations {
               | 'glitch'
               | 'grass'
               | 'halfmoon'
+              | 'spooky'
               | 'leaves'
               | 'characters'
               | 'brixx'
@@ -656,7 +986,7 @@ export interface operations {
               | 'variedDots'
               | 'ripple'
               | 'isometric'
-            /** @description Tuning parameters for the chosen style. Which keys are accepted depends on the style — the QR Designer exposes them as that style’s own sliders. */
+            /** @description Tuning parameters for the module style. Which keys it accepts depends on the style: the [QR Designer](https://qrocodile.io/en/) exposes them as that style’s own sliders, and they are tabulated per style on the [API page](https://qrocodile.io/en/qr-code-api/). An unrecognized key is ignored rather than rejected — a style that drops a parameter should not break a stored design — though a key over 64 characters is refused. */
             moduleStyleParams?: {
               [key: string]: number | string
             }
@@ -683,7 +1013,7 @@ export interface operations {
               | 'sticker'
               | 'segmented'
               | 'dotted'
-            /** @description Tuning parameters for the chosen style. Which keys are accepted depends on the style — the QR Designer exposes them as that style’s own sliders. */
+            /** @description Tuning parameters for the finder style. Which keys it accepts depends on the style: the [QR Designer](https://qrocodile.io/en/) exposes them as that style’s own sliders, and they are tabulated per style on the [API page](https://qrocodile.io/en/qr-code-api/). An unrecognized key is ignored rather than rejected — a style that drops a parameter should not break a stored design — though a key over 64 characters is refused. */
             finderStyleParams?: {
               [key: string]: number | string
             }
@@ -709,7 +1039,7 @@ export interface operations {
                   stops: (
                     | string
                     | {
-                        /** @description The stop’s color. */
+                        /** @description The stop’s color, as hex — `#0d9488`. */
                         color: string
                         /** @description Where the stop sits along the gradient, 0 = start, 1 = end. */
                         offset: number
@@ -765,7 +1095,7 @@ export interface operations {
                   stops: (
                     | string
                     | {
-                        /** @description The stop’s color. */
+                        /** @description The stop’s color, as hex — `#0d9488`. */
                         color: string
                         /** @description Where the stop sits along the gradient, 0 = start, 1 = end. */
                         offset: number
@@ -790,7 +1120,7 @@ export interface operations {
                   stops: (
                     | string
                     | {
-                        /** @description The stop’s color. */
+                        /** @description The stop’s color, as hex — `#0d9488`. */
                         color: string
                         /** @description Where the stop sits along the gradient, 0 = start, 1 = end. */
                         offset: number
@@ -1019,6 +1349,14 @@ export interface operations {
       /** @description The rendered QR code image — SVG or PNG per the requested `format`. The response `Content-Type` names the format actually returned and is authoritative. */
       200: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
+          /** @description Always `public, max-age=3600`. The same content and design always produce the same image, so the response is safe to cache for an hour. */
+          'cache-control'?: string
           [name: string]: unknown
         }
         content: {
@@ -1026,15 +1364,34 @@ export interface operations {
           'image/png': string
         }
       }
-      /** @description Content or design failed validation, or the format is unsupported. Unlike the GET query, this body is strict: an unrecognized key is an error rather than ignored, `animation` included. */
+      /** @description Content or design failed validation. Unlike the GET query, this body is strict: an unrecognized key is an error rather than ignored, `animation` included. */
       400: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
@@ -1043,68 +1400,198 @@ export interface operations {
       /** @description API key missing, malformed, unknown, or revoked. */
       401: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description Custom logo or requested PNG size over the cap. */
+      /** @description A custom logo is over its cap — 100 KB decoded, 64 KB for SVG, 1024 px per side for a raster image — or the whole request body is over 1 MB. */
       413: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description Valid input that cannot be encoded — usually content too long for a QR code. */
+      /** @description The request body arrived with a `Content-Type` the API has no parser for. Send `application/json`. */
+      415: {
+        headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            error: {
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
+              message: string
+            }
+          }
+        }
+      }
+      /** @description Valid input that cannot be encoded — in practice, content too long for a QR code. A QR code holds roughly 2,300 bytes at most, well under the 4,096 characters `content` accepts. */
       422: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description Rate limit exceeded. Carries `retry-after` (seconds to wait) plus `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` (seconds until the window resets). Successful responses carry the three `x-ratelimit-*` headers too, so a client can pace itself without ever provoking a 429. */
+      /** @description Rate limit exceeded — renders are capped at 60 per minute per API key. See the response headers below for how long to wait. The `x-ratelimit-*` three come back on every response, successful ones included, so a client can pace itself without ever provoking this. */
       429: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
+          /** @description Seconds to wait before retrying. Sent only with a 429. */
+          'retry-after'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }
         }
       }
-      /** @description Render failure. Logged on our side. */
+      /** @description Render failure. Logged on our side, deliberately without the content or design that caused it — so if you hit one, tell us what you sent. */
       500: {
         headers: {
+          /** @description Requests allowed in the current window. */
+          'x-ratelimit-limit'?: number
+          /** @description Requests still allowed in the current window. */
+          'x-ratelimit-remaining'?: number
+          /** @description Seconds until the window resets and `x-ratelimit-remaining` returns to `x-ratelimit-limit`. */
+          'x-ratelimit-reset'?: number
           [name: string]: unknown
         }
         content: {
           'application/json': {
             error: {
-              code: string
+              /**
+               * @description Machine-readable failure code. Stable across releases, so this is the field to branch on. `message` is not stable — it is written for a human reading a log and may be reworded at any time.
+               * @enum {string}
+               */
+              code:
+                | 'VALIDATION_ERROR'
+                | 'UNAUTHORIZED'
+                | 'NOT_FOUND'
+                | 'PAYLOAD_TOO_LARGE'
+                | 'UNSUPPORTED_MEDIA_TYPE'
+                | 'UNPROCESSABLE'
+                | 'RATE_LIMITED'
+                | 'INTERNAL_ERROR'
+              /** @description What went wrong, in English, for a human to read. Do not match on it — see `code`. */
               message: string
             }
           }

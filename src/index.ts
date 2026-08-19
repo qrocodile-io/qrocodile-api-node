@@ -31,6 +31,17 @@ export type RenderInput = Omit<
 >
 
 /**
+ * Every failure code the API can return.
+ *
+ * Derived from the spec rather than written out here, so it cannot fall behind: the API declares
+ * `error.code` as a closed enum, which arrives in the generated types as a union. A `switch` over
+ * this is exhaustive, and a code the API drops or adds becomes a compile error in consumer code
+ * instead of a branch that silently stops matching.
+ */
+export type QrApiErrorCode =
+  operations['renderQrCodeWithDesign']['responses'][400]['content']['application/json']['error']['code']
+
+/**
  * Thrown by the client helpers when the API returns an error response (non-2xx).
  * Genuine network failures (offline, DNS, aborted) reject with the underlying `fetch`
  * error instead — they never reached the API, so there is no status or code.
@@ -38,10 +49,18 @@ export type RenderInput = Omit<
 export class QrApiError extends Error {
   /** HTTP status of the error response. */
   readonly status: number
-  /** Machine-readable error code from the API's `{ error: { code, message } }` body. */
-  readonly code: string
+  /**
+   * Machine-readable error code from the API's `{ error: { code, message } }` body. Stable, and
+   * the field to branch on — `message` is written for a human and may be reworded.
+   */
+  readonly code: QrApiErrorCode
 
-  constructor(message: string, status: number, code: string, options?: { cause?: unknown }) {
+  constructor(
+    message: string,
+    status: number,
+    code: QrApiErrorCode,
+    options?: { cause?: unknown },
+  ) {
     super(message, options)
     this.name = 'QrApiError'
     this.status = status
@@ -56,7 +75,7 @@ export class QrApiError extends Error {
 async function unwrap<T>(
   promise: Promise<{
     data?: T
-    error?: { error: { code: string; message: string } }
+    error?: { error: { code: QrApiErrorCode; message: string } }
     response: Response
   }>,
 ): Promise<T> {
