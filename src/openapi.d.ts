@@ -614,7 +614,7 @@ export interface operations {
           | 'creeper'
           | 'bats'
           | 'flourish'
-        /** @description Image width and height in pixels. Defaults to 300 for SVG and 1024 for PNG. */
+        /** @description Image width and height in pixels. Defaults to 300 for SVG and 1,024 for PNG. */
         size?: number
         /** @description Quiet zone around the QR code, in modules. One module is the minimum, so 0 and 1 both render a single-module zone. */
         margin?: number
@@ -1339,7 +1339,7 @@ export interface operations {
            * @enum {string}
            */
           format?: 'svg' | 'png'
-          /** @description Image width and height in pixels. Defaults to 300 for SVG and 1024 for PNG. */
+          /** @description Image width and height in pixels. Defaults to 300 for SVG and 1,024 for PNG. */
           size?: number
           /**
            * @description Nudge low-contrast color combinations apart so the QR code stays scannable. Turn it off to get the colors exactly as given.
@@ -1432,7 +1432,7 @@ export interface operations {
           }
         }
       }
-      /** @description A custom logo is over its cap — 100 KB decoded, 64 KB for SVG, 1024 px per side for a raster image — or the whole request body is over 1 MB. */
+      /** @description A custom logo is over its cap — 100 KB decoded, 64 KB for SVG, 1,024 px per side for a raster image — or the whole request body is over 1 MB. */
       413: {
         headers: {
           /** @description Requests allowed in the current window. */
