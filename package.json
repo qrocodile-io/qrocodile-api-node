@@ -13,7 +13,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/",
+    "lint": "eslint src/ examples/",
     "codegen": "SITE_URLS=https://qrocodile.io BASE_URL=https://api.qrocodile.io node ../../apps/qr-api/scripts/dump-openapi.ts > openapi.tmp.json && openapi-typescript openapi.tmp.json -o src/openapi.d.ts && rm openapi.tmp.json",
     "signup": "node examples/signup.ts",
     "generate": "node examples/generate.ts",
