@@ -12,7 +12,8 @@ export interface QrApiClientOptions {
   /**
    * Your API key (`qk_live_…`), sent as `Authorization: Bearer`.
    * Omit it only for the key-registration flow (`registerKey` / `confirmKey`).
-   * Get one via `registerKey(email)` → confirm the emailed link → `confirmKey(token)`.
+   * Get one via `registerKey(email)` → read the 6-digit code out of the email →
+   * `confirmKey(code, { email })`.
    */
   apiKey?: string | undefined
   /** Override the API base URL. Defaults to `https://api.qrocodile.io`. */
@@ -40,6 +41,14 @@ export type RenderInput = Omit<
  */
 export type QrApiErrorCode =
   operations['renderQrCodeWithDesign']['responses'][400]['content']['application/json']['error']['code']
+
+/** What {@link createQrApiClient}'s `registerKey` resolves to. */
+export type RegisterKeyResult =
+  operations['registerKey']['responses'][202]['content']['application/json']
+
+/** What {@link createQrApiClient}'s `confirmKey` resolves to — the key, plus whether it replaced one. */
+export type ConfirmKeyResult =
+  operations['confirmKey']['responses'][200]['content']['application/json']
 
 /**
  * Thrown by the client helpers when the API returns an error response (non-2xx).
@@ -71,10 +80,17 @@ export class QrApiError extends Error {
 /**
  * Turn an openapi-fetch `{ data, error, response }` result into the bare data, throwing
  * a {@link QrApiError} on an API error response.
+ *
+ * `data` is deliberately `unknown` rather than inferred, so `T` comes from each caller's
+ * declared return type instead of from the spec. That matters for the render endpoints: the
+ * API declares their 200 body as `format: binary`, which openapi-typescript emits as
+ * `string` for both SVG and PNG, and openapi-fetch does not re-type the result from
+ * `parseAs`. Inferring would therefore have promised a `string` of PNG bytes — the one
+ * signature in this package a consumer is most likely to act on and get wrong.
  */
 async function unwrap<T>(
   promise: Promise<{
-    data?: T
+    data?: unknown
     error?: { error: { code: QrApiErrorCode; message: string } }
     response: Response
   }>,
@@ -131,12 +147,12 @@ export function createQrApiClient(options: QrApiClientOptions = {}) {
      * a bare `{ content: 'https://…' }` yields a plain code, and the full QrDesignConfig
      * (presets, styles, colors, logo…) goes under `design`.
      */
-    renderSvg(input: RenderInput) {
+    renderSvg(input: RenderInput): Promise<string> {
       return unwrap(client.POST('/v1/qr', { body: { ...input, format: 'svg' }, parseAs: 'text' }))
     },
 
     /** Render PNG bytes (`POST /v1/qr`). Same input as {@link renderSvg}. */
-    renderPng(input: RenderInput) {
+    renderPng(input: RenderInput): Promise<ArrayBuffer> {
       return unwrap(
         client.POST('/v1/qr', { body: { ...input, format: 'png' }, parseAs: 'arrayBuffer' }),
       )
@@ -149,7 +165,7 @@ export function createQrApiClient(options: QrApiClientOptions = {}) {
      * The 202 is identical whether or not the address already has a key, so it cannot be used to
      * probe which addresses are registered.
      */
-    registerKey(email: string, lang?: 'en' | 'de') {
+    registerKey(email: string, lang?: 'en' | 'de'): Promise<RegisterKeyResult> {
       return unwrap(client.POST('/v1/keys', { body: { email, ...(lang ? { lang } : {}) } }))
     },
 
@@ -160,7 +176,10 @@ export function createQrApiClient(options: QrApiClientOptions = {}) {
      * Registering an address that already has a key rotates it: confirming issues a fresh key
      * and revokes the old one, and the old key keeps working until then.
      */
-    confirmKey(code: string, identifier: { email: string } | { rid: string }) {
+    confirmKey(
+      code: string,
+      identifier: { email: string } | { rid: string },
+    ): Promise<ConfirmKeyResult> {
       return unwrap(client.POST('/v1/keys/confirm', { body: { code, ...identifier } }))
     },
   }

@@ -2,8 +2,8 @@
 /**
  * Interactive signup helper for the QRocodile QR Code API.
  *
- *   pnpm --filter @pagebase/qr-api-client signup [email] [code]
- *   QR_API_URL=http://localhost:3002 pnpm --filter @pagebase/qr-api-client signup you@example.com
+ *   pnpm --filter @qrocodile/api signup [email] [code]
+ *   QR_API_URL=http://localhost:3002 pnpm --filter @qrocodile/api signup you@example.com
  *
  * Flow: register an email → a 6-digit code arrives in your inbox → paste it here → the script
  * prints your key to stdout (so it's pipeable: `signup you@example.com > key.txt`). All
@@ -64,9 +64,13 @@ if (code.length !== 6) {
 }
 
 let apiKey: string
+// `replaced` is true when this address already had a key: the old one stopped working the
+// moment this one was issued, so anything still using it now gets a 401.
+let replaced: boolean
 try {
   const result = await qr.confirmKey(code, { email })
-  apiKey = (result as { apiKey: string }).apiKey
+  apiKey = result.apiKey
+  replaced = result.replaced
 } catch (err) {
   rl?.close()
   console.error(`✗ Confirmation failed: ${errMessage(err)}`)
@@ -75,5 +79,8 @@ try {
 }
 rl?.close()
 
+if (replaced) {
+  console.error('\n! This replaced an existing key for that address — the old one no longer works.')
+}
 console.error('\n✓ Your API key (store it now — it is not shown again):\n')
 console.log(apiKey) // stdout only, so it can be piped/captured

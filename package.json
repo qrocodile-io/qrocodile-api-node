@@ -1,20 +1,70 @@
 {
-  "name": "@pagebase/qr-api-client",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@qrocodile/api",
+  "version": "0.1.0",
   "type": "module",
-  "description": "Typed client for the QRocodile QR Code API (api.qrocodile.io)",
+  "description": "Typed client for the QRocodile QR Code API — render styled QR codes as SVG or PNG",
   "license": "MIT",
+  "author": "Philipp Katz",
+  "homepage": "https://qrocodile.io/en/qr-code-api/",
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/pagebase/pagebase.git",
+    "directory": "packages/qr-api-client"
+  },
+  "bugs": {
+    "url": "https://gitlab.com/pagebase/pagebase/-/issues"
+  },
+  "keywords": [
+    "qr",
+    "qr-code",
+    "qrcode",
+    "qr-generator",
+    "svg",
+    "png",
+    "api-client",
+    "typescript",
+    "qrocodile"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "import": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.js"
+        },
+        "require": {
+          "types": "./dist/index.d.cts",
+          "default": "./dist/index.cjs"
+        }
+      }
+    }
+  },
   "scripts": {
+    "build": "tsup && node scripts/check-dts.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/ examples/",
-    "codegen": "SITE_URLS=https://qrocodile.io BASE_URL=https://api.qrocodile.io node ../../apps/qr-api/scripts/dump-openapi.ts > openapi.tmp.json && openapi-typescript openapi.tmp.json -o src/openapi.d.ts && rm openapi.tmp.json",
+    "lint": "eslint src/ examples/ scripts/",
+    "codegen": "node scripts/codegen.mjs",
+    "codegen:check": "node scripts/codegen.mjs --check",
+    "prepublishOnly": "pnpm run codegen:check && pnpm run typecheck && pnpm run lint && pnpm run build",
     "signup": "node examples/signup.ts",
     "generate": "node examples/generate.ts",
     "logo": "node examples/logo.ts"
@@ -25,6 +75,7 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "openapi-typescript": "^7.13.0",
+    "tsup": "^8.5.0",
     "typescript": "^5.8.0"
   }
 }
