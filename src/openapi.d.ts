@@ -614,6 +614,9 @@ export interface operations {
           | 'creeper'
           | 'bats'
           | 'flourish'
+          | 'bigFish'
+          | 'paperKoi'
+          | 'deepSea'
         /** @description Image width and height in pixels. Defaults to 300 for SVG and 1,024 for PNG. */
         size?: number
         /** @description Quiet zone around the QR code, in modules. One module is the minimum, so 0 and 1 both render a single-module zone. */
@@ -925,6 +928,9 @@ export interface operations {
               | 'creeper'
               | 'bats'
               | 'flourish'
+              | 'bigFish'
+              | 'paperKoi'
+              | 'deepSea'
             /**
              * @description Shape the modules (the pattern) are drawn with. The enum lists every style this build can render.
              * @enum {string}
@@ -947,6 +953,7 @@ export interface operations {
               | 'drip'
               | 'explosion'
               | 'film'
+              | 'fish'
               | 'ink-pen'
               | 'washi-tape'
               | 'comic-fries'
@@ -1174,6 +1181,7 @@ export interface operations {
                     | 'paypal'
                     | 'amazon'
                     | 'googleplay'
+                    | 'euro'
                     | 'github'
                     | 'kim'
                   /** @description Color the icon is recolored to. */
