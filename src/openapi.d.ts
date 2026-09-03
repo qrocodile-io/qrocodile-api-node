@@ -1148,6 +1148,11 @@ export interface operations {
              * @default 2
              */
             margin?: number
+            /**
+             * @description Error correction level. Omit to auto-resolve from the logo/style — set this only when a design has a fixed level rather than an auto-resolved one, e.g. a content type whose standard mandates it (L 7%, M 15%, Q 25%, H 30% redundancy).
+             * @enum {string}
+             */
+            errorCorrection?: 'L' | 'M' | 'Q' | 'H'
             /** @description A logo placed on the QR code: either a built-in icon by `id`, or your own artwork as base64 in `data`. Not both. */
             logo?:
               | {
@@ -1182,6 +1187,7 @@ export interface operations {
                     | 'amazon'
                     | 'googleplay'
                     | 'euro'
+                    | 'swissCross'
                     | 'github'
                     | 'kim'
                   /** @description Color the icon is recolored to. */
