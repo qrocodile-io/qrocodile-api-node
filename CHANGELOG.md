@@ -5,6 +5,15 @@ usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breakin
 
 ## Unreleased
 
+## 0.1.1-beta.0
+
+No functional changes — `dist/` is byte-identical to 0.1.0.
+
+Published to exercise the release pipeline end to end: trusted publishing over OIDC, the
+provenance attestation, and automatic creation of the GitHub release from this changelog.
+Cut as a pre-release so it takes the `beta` dist-tag and `npm install @qrocodile/api`
+continues to resolve to 0.1.0.
+
 ## 0.1.0
 
 First public release.
