@@ -1,8 +1,8 @@
 /**
  * Generate a QR code via the QRocodile QR Code API and save it to a file.
  *
- *   QR_API_KEY=qk_live_… pnpm --filter @qrocodile/api generate "https://qrocodile.io" png
- *   QR_API_URL=http://localhost:3002 QR_API_KEY=… pnpm --filter @qrocodile/api generate "hi" svg
+ *   QR_API_KEY=qk_live_… node examples/generate.ts "https://qrocodile.io" png
+ *   QR_API_URL=http://localhost:3002 QR_API_KEY=… node examples/generate.ts "hi" svg
  *
  * Args: [content] [format: svg|png]. Get a key with the `signup` example.
  * renderSvg/renderPng take the content string plus an optional design; the content is encoded
@@ -15,7 +15,7 @@ import { createQrApiClient, type RenderInput } from '../src/index.ts'
 const baseUrl = process.env.QR_API_URL // undefined → the client's default (api.qrocodile.io)
 const apiKey = process.env.QR_API_KEY
 if (!apiKey) {
-  console.error('Set QR_API_KEY. Get one with: pnpm --filter @qrocodile/api signup <email>')
+  console.error('Set QR_API_KEY. Get one with: node examples/signup.ts <email>')
   process.exit(1)
 }
 

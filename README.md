@@ -3,9 +3,8 @@
 Typed TypeScript client for the [QRocodile QR Code API](https://qrocodile.io/en/qr-code-api/) —
 generate styled QR codes (SVG or PNG) from content plus a design config.
 
-Built on [`openapi-fetch`](https://openapi-ts.dev/openapi-fetch/) with types generated
-from the API's OpenAPI document, so every body field and design id (presets, module and
-finder styles, palettes, logos, halos) is fully typed and autocompleted.
+Every body field and design id — presets, module and finder styles, palettes, logos,
+halos — is fully typed and autocompleted, and stays in step with the API.
 
 Ships ESM and CommonJS, with bundled type declarations. Node 20 or newer.
 
@@ -112,40 +111,7 @@ Endpoint reference, design-config fields, error tables and rate limits:
 
 MIT
 
----
+## Contributing
 
-## Development (in this monorepo)
-
-The runnable examples are kept in the repository and are not part of the published package:
-
-```bash
-# Interactive signup — prints the key once you paste the emailed code
-pnpm --filter @qrocodile/api signup you@example.com
-# → prints your key to stdout;  signup you@example.com > key.txt  captures just the key
-# → point at another environment with QR_API_URL=http://localhost:3002
-
-# Write a QR image to a file (svg also supported)
-QR_API_KEY=qk_live_… pnpm --filter @qrocodile/api generate "https://qrocodile.io" png
-
-# Same, with a centered logo — a local image file or a built-in logo id
-QR_API_KEY=qk_live_… pnpm --filter @qrocodile/api logo "https://qrocodile.io" whatsapp svg
-```
-
-`src/openapi.d.ts` is generated from the QR Render API's OpenAPI document. The document is
-dumped straight out of `apps/qr-api` in memory — no server, no database, no port — with
-`SITE_URLS` and `BASE_URL` pinned to the production values, so the published types never
-carry a developer's `localhost` links:
-
-```bash
-pnpm --filter @qrocodile/api codegen        # rewrite src/openapi.d.ts
-pnpm --filter @qrocodile/api codegen:check  # fail if it drifted from the API (runs in CI)
-```
-
-Because the API and the client live in the same repository, the drift check runs whenever
-either one changes. Regenerate and commit as part of the change that alters the API.
-
-```bash
-pnpm --filter @qrocodile/api build  # tsup → dist/ (ESM + CJS + bundled .d.ts), then the
-                                    # guard that keeps the generated types out of the
-                                    # published declarations
-```
+Bug reports and questions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) if you are
+working on the client itself.

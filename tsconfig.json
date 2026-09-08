@@ -4,5 +4,5 @@
     "outDir": "dist",
     "types": ["node"]
   },
-  "include": ["src", "examples"]
+  "include": ["src", "examples", "test"]
 }

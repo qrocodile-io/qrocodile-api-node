@@ -4,11 +4,11 @@
  * Two kinds of logo, chosen automatically from the 2nd argument:
  *   • a path to an image file (.png / .jpg / .svg) → embedded as a CUSTOM logo
  *     (base64, validated + sanitized server-side; no URL fetching)
- *   • anything else → treated as a BUILT-IN logo id (e.g. whatsapp, instagram)
+ *   • anything else → treated as a BUILT-IN logo id (e.g. website, wifi, email)
  *
- *   QR_API_KEY=qk_live_… pnpm --filter @qrocodile/api logo "https://qrocodile.io" ./logo.png png
- *   QR_API_KEY=… pnpm --filter @qrocodile/api logo "https://qrocodile.io" whatsapp svg
- *   QR_API_URL=http://localhost:3002 QR_API_KEY=… pnpm --filter @qrocodile/api logo
+ *   QR_API_KEY=qk_live_… node examples/logo.ts "https://qrocodile.io" ./logo.png png
+ *   QR_API_KEY=… node examples/logo.ts "https://qrocodile.io" website svg
+ *   QR_API_URL=http://localhost:3002 QR_API_KEY=… node examples/logo.ts
  *
  * Uses renderSvg/renderPng (POST /v1/qr), which take content plus a full QrDesignConfig.
  */
@@ -20,12 +20,12 @@ import { createQrApiClient, type RenderInput } from '../src/index.ts'
 
 const apiKey = process.env.QR_API_KEY
 if (!apiKey) {
-  console.error('Set QR_API_KEY. Get one with: pnpm --filter @qrocodile/api signup <email>')
+  console.error('Set QR_API_KEY. Get one with: node examples/signup.ts <email>')
   process.exit(1)
 }
 
 const content = process.argv[2] ?? 'https://qrocodile.io'
-const logoArg = process.argv[3] ?? 'whatsapp'
+const logoArg = process.argv[3] ?? 'website'
 const format = process.argv[4] === 'svg' ? 'svg' : 'png'
 
 const MIME_BY_EXT: Record<string, string> = {

@@ -2,8 +2,8 @@
 /**
  * Interactive signup helper for the QRocodile QR Code API.
  *
- *   pnpm --filter @qrocodile/api signup [email] [code]
- *   QR_API_URL=http://localhost:3002 pnpm --filter @qrocodile/api signup you@example.com
+ *   node examples/signup.ts [email] [code]
+ *   QR_API_URL=http://localhost:3002 node examples/signup.ts you@example.com
  *
  * Flow: register an email → a 6-digit code arrives in your inbox → paste it here → the script
  * prints your key to stdout (so it's pipeable: `signup you@example.com > key.txt`). All
