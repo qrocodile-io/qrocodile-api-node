@@ -1,6 +1,6 @@
 {
   "name": "@qrocodile/api",
-  "version": "0.1.0",
+  "version": "0.1.1-beta.0",
   "type": "module",
   "description": "Typed client for the QRocodile QR Code API — render styled QR codes as SVG or PNG",
   "license": "MIT",
