@@ -1,5 +1,17 @@
 name: Publish
 
+# ┌─────────────────────────────────────────────────────────────────────────────────────┐
+# │ DO NOT RENAME THIS FILE, and do not change the job's `environment:` below.           │
+# │                                                                                     │
+# │ npm's trusted publisher entry for @qrocodile/api names "publish.yml" and the "npm"  │
+# │ environment literally. They are how npm decides this workflow is allowed to publish. │
+# │ Rename either and publishing fails with an auth error that says nothing about the    │
+# │ cause — and npm's entry cannot be edited, only deleted and recreated.                │
+# │                                                                                     │
+# │ If you must rename: create the new trusted publisher entry on npmjs.com first, then  │
+# │ rename here, then delete the old entry.                                              │
+# └─────────────────────────────────────────────────────────────────────────────────────┘
+
 # Version tags only. `pnpm version <bump>` makes the commit and the tag; `git push
 # --follow-tags` (wired up as the `postversion` script) sends both, and the tag is what
 # lands here.

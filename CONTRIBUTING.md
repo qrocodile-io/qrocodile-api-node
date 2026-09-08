@@ -112,8 +112,13 @@ and `package.json` agree, runs the full gate, and publishes.
 
 There is no npm token anywhere. npm is configured to trust this repository, this workflow
 filename and the `npm` environment, so the runner authenticates with a short-lived OIDC
-credential instead. Renaming `publish.yml`, or changing the job's `environment:`, breaks
-publishing until npm's trusted publisher entry is updated to match.
+credential instead. **Do not rename `publish.yml` or change the job's `environment:`** —
+npm's trusted publisher entry names both literally, and the entry cannot be edited, only
+deleted and recreated.
+
+The `npm` environment carries two further guards: a publish waits for approval from a
+required reviewer, and only `v*` tags may deploy to it, so nothing running on a branch can
+reach the publishing credential even if it asked for that environment by name.
 
 Provenance — proof of which commit and which workflow run produced the tarball, shown on the
 npm page — comes automatically with that, which is why no `--provenance` flag appears. It
