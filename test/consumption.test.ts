@@ -108,6 +108,20 @@ describe('the published tarball', () => {
       },
     })
   })
+
+  /**
+   * npm renders both of these on the package page, so a link that 404s is worse than no link
+   * at all — which is why they were absent until the public repo existed. Asserting they
+   * survive the `publishConfig` overlay and point somewhere a stranger can actually reach.
+   */
+  it('links back to a public source repo and issue tracker', () => {
+    const manifest = JSON.parse(
+      readFileSync(join(consumer, 'node_modules', '@qrocodile', 'api', 'package.json'), 'utf8'),
+    ) as { repository?: { url?: string }; bugs?: { url?: string } }
+
+    expect(manifest.repository?.url).toMatch(/^git\+https:\/\/github\.com\//)
+    expect(manifest.bugs?.url).toMatch(/^https:\/\/github\.com\/.+\/issues$/)
+  })
 })
 
 describe('loading it', () => {

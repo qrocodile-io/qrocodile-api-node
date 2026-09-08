@@ -6,6 +6,13 @@
   "license": "MIT",
   "author": "QRocodile",
   "homepage": "https://qrocodile.io/en/qr-code-api/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qrocodile-io/qrocodile-api-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/qrocodile-io/qrocodile-api-node/issues"
+  },
   "keywords": [
     "qr",
     "qr-code",
