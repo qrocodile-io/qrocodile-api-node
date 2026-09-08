@@ -3,6 +3,11 @@
 Notes for working on the client itself. None of this reaches consumers — `files: ["dist"]`
 keeps this file, `examples/` and `src/` out of the published tarball.
 
+```bash
+pnpm install
+pnpm test
+```
+
 The package is built on [`openapi-fetch`](https://openapi-ts.dev/openapi-fetch/), with the
 request and response types generated from the QR Render API's OpenAPI document. The
 hand-written surface in `src/index.ts` is deliberately sealed: it derives its types from the
@@ -23,23 +28,29 @@ generated ones but never re-exports them, so consumers depend only on
 
 ## Codegen
 
-`src/openapi.d.ts` is generated from the QR Render API's OpenAPI document. The document is
-dumped straight out of `apps/qr-api` in memory — no server, no database, no port — with
-`SITE_URLS` and `BASE_URL` pinned to the production values, so the published types never
-carry a developer's `localhost` links.
+`src/openapi.d.ts` is generated from the QR Render API's OpenAPI document, fetched from the
+live API at `https://api.qrocodile.io/docs/json`. Point `QR_API_SPEC_URL` somewhere else to
+generate against another deployment.
 
 ```bash
-pnpm --filter @qrocodile/api codegen        # rewrite src/openapi.d.ts
-pnpm --filter @qrocodile/api codegen:check  # fail if it drifted from the API (runs in CI)
+pnpm codegen        # rewrite src/openapi.d.ts
+pnpm codegen:check  # fail if it drifted from the API (runs in CI)
 ```
 
-Because the API and the client live in the same repository, the drift check runs whenever
-either one changes. Regenerate and commit as part of the change that alters the API.
+`codegen:check` compares the committed types against the API **as deployed**, so it can
+begin failing without anything here changing — which is why CI runs it nightly as well as on
+push. When it fails, the API has shipped something these types do not describe: regenerate
+and commit.
+
+Note what this does _not_ catch. While the client lived in the monorepo alongside
+`apps/qr-api`, the check ran against that app's source and failed in the API's own merge
+request, before the change shipped. Generating from a deployment moves that signal after
+release. A versioned spec artifact would restore it.
 
 ## Build
 
 ```bash
-pnpm --filter @qrocodile/api build
+pnpm build
 ```
 
 tsup emits `dist/` (ESM + CJS + rolled-up `.d.ts`), then `scripts/check-dts.mjs` fails the
@@ -49,7 +60,7 @@ types.
 ## Tests
 
 ```bash
-pnpm --filter @qrocodile/api test
+pnpm test
 ```
 
 Three layers, and they catch different things:
@@ -66,7 +77,7 @@ The integration test (`test/integration.test.ts`) hits the live API and self-ski
 `QR_API_KEY` is set, so a local `pnpm test` stays offline by default:
 
 ```bash
-QR_API_KEY=qk_live_… pnpm --filter @qrocodile/api test
+QR_API_KEY=qk_live_… pnpm test
 ```
 
 CI provides the key, so the pipeline does exercise the real API. Keep these tests to a
@@ -92,4 +103,10 @@ QR_API_KEY=qk_live_… node examples/logo.ts "https://qrocodile.io" website svg
 
 ## Releasing
 
-See [`docs/qr-api-client-release.md`](../../docs/qr-api-client-release.md).
+Not yet automated — a publish-on-tag workflow is the remaining piece. Until it exists,
+`prepublishOnly` is the gate: it runs `codegen:check`, `typecheck`, `lint` and the full test
+suite before anything leaves the machine.
+
+The package is published to public npm as `@qrocodile/api`. `publishConfig` rewrites the
+manifest at pack time so the published entry points target `dist/` while local development
+keeps resolving `src/`.

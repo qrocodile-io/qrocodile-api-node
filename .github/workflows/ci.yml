@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # The drift check compares the committed types against the *deployed* API, so it can start
+  # failing without anything in this repo changing. A push-only schedule would not notice.
+  schedule:
+    - cron: '17 6 * * *'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      # Reads .node-version, so the pin lives in one place and matches what `devEngines`
+      # declares. npm enforces devEngines, and would fail loudly on a mismatch anyway.
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run format:check
+
+      # Fails if src/openapi.d.ts no longer describes the deployed API.
+      - run: pnpm run codegen:check
+
+      # Proves the publishable bundle builds and its declarations stay self-contained.
+      - run: pnpm run build
+
+      - run: pnpm run test
+        env:
+          QR_API_KEY: ${{ secrets.QR_API_KEY }}
+          # Whether the integration suite is allowed to skip. Pull requests from forks get no
+          # secrets, so requiring the key there would fail every outside contributor's first
+          # PR for something they cannot fix. Everywhere else — our own PRs, pushes to main,
+          # the nightly run — a missing secret has to fail rather than silently skip.
+          QR_API_INTEGRATION_REQUIRED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}

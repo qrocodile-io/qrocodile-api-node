@@ -3,14 +3,16 @@
 //   node scripts/codegen.mjs           rewrite src/openapi.d.ts in place
 //   node scripts/codegen.mjs --check   compare instead of writing; exit 1 on drift
 //
-// The document comes from `apps/qr-api/scripts/dump-openapi.ts`, which builds the Fastify
-// app in memory and reads its registered schemas — no server, no database, no port. See
-// that script for why a dump beats generating against a developer's running instance.
+// The document is fetched from the live API. Inside the monorepo this used to be dumped
+// from the Fastify app in memory — no server, no network — but that is not available here,
+// and fetching has one property the dump did not: it describes the API as **deployed**,
+// which is the only API a published client can actually talk to.
 //
-// `SITE_URLS` and `BASE_URL` are pinned to the production values on purpose: they decide
-// the server URL and the documentation links baked into the spec, and therefore into the
-// types we publish. Generating with a developer's own `.env` would ship `localhost` in a
-// package that describes the public API.
+// The cost is that `--check` now answers a slightly different question. It no longer fails
+// when someone edits the API's source; it fails once that edit is deployed. Drift is caught
+// after release rather than before merge, so this is worth running on a schedule and not
+// only on push. A versioned spec artifact would restore the pre-merge guarantee — see the
+// `qrocodile-openapi` plan in the monorepo's docs.
 //
 // The Prettier pass is not cosmetic. `--check` compares the generated text against the
 // committed file byte for byte, and openapi-typescript's own formatting differs from this
@@ -21,25 +23,30 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const TARGET = 'src/openapi.d.ts'
-
-const DUMP_ENV = {
-  SITE_URLS: 'https://qrocodile.io',
-  BASE_URL: 'https://api.qrocodile.io',
-}
+const SPEC_URL = process.env['QR_API_SPEC_URL'] ?? 'https://api.qrocodile.io/docs/json'
 
 const check = process.argv.includes('--check')
 
+async function fetchSpec() {
+  const response = await fetch(SPEC_URL, { headers: { accept: 'application/json' } })
+  if (!response.ok) {
+    throw new Error(
+      `[qrocodile-api] Could not fetch the OpenAPI document from ${SPEC_URL} ` +
+        `(HTTP ${response.status}). Point QR_API_SPEC_URL at another deployment to override.`,
+    )
+  }
+  // Re-serialised rather than passed through, so a change in the server's whitespace or key
+  // order cannot show up as drift in the generated types.
+  return JSON.stringify(await response.json(), null, 2)
+}
+
 // Everything transient lives in one directory that is removed in `finally`, so a failure
-// part-way through cannot leave a stray file in the package for someone to commit.
-const workDir = mkdtempSync(join(tmpdir(), 'qr-api-codegen-'))
+// part-way through cannot leave a stray file in the repo for someone to commit.
+const workDir = mkdtempSync(join(tmpdir(), 'qrocodile-api-codegen-'))
 
 try {
   const specPath = join(workDir, 'openapi.json')
-  const spec = execFileSync('node', ['../../apps/qr-api/scripts/dump-openapi.ts'], {
-    env: { ...process.env, ...DUMP_ENV },
-    maxBuffer: 32 * 1024 * 1024,
-  })
-  writeFileSync(specPath, spec)
+  writeFileSync(specPath, await fetchSpec())
 
   const typesPath = join(workDir, 'openapi.d.ts')
   execFileSync('openapi-typescript', [specPath, '-o', typesPath], { stdio: 'inherit' })
@@ -52,16 +59,16 @@ try {
 
   if (!check) {
     writeFileSync(TARGET, generated)
-    console.log(`[qr-api-client] Wrote ${TARGET} (${(generated.length / 1024).toFixed(0)} KB).`)
+    console.log(`[qrocodile-api] Wrote ${TARGET} (${(generated.length / 1024).toFixed(0)} KB).`)
   } else if (readFileSync(TARGET, 'utf8') !== generated) {
     throw new Error(
-      `[qr-api-client] ${TARGET} is out of date with the QR Render API's OpenAPI document.\n\n` +
+      `[qrocodile-api] ${TARGET} is out of date with the deployed API at ${SPEC_URL}.\n\n` +
         `The published client's types no longer describe the API it talks to. Run\n` +
-        `  pnpm --filter @qrocodile/api codegen\n` +
+        `  pnpm codegen\n` +
         `and commit the result.`,
     )
   } else {
-    console.log(`[qr-api-client] ${TARGET} matches the API's OpenAPI document.`)
+    console.log(`[qrocodile-api] ${TARGET} matches the deployed API.`)
   }
 } finally {
   rmSync(workDir, { recursive: true, force: true })

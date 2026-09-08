@@ -1,0 +1,16 @@
+# pnpm 11 reads configuration from this file only: `.npmrc` is limited to auth and registry
+# settings, and the `pnpm` field in package.json is no longer consulted. It is present here
+# for the settings, not for workspaces — this repo holds a single package.
+
+# Where pnpm decides node_modules has to be recreated it asks for confirmation and aborts
+# outright when there is no TTY, which is every CI job. node_modules is disposable, so
+# approve it up front.
+confirmModulesPurge: false
+
+# `allowBuilds` is a map, not a list — pnpm silently ignores a list, leaving every build
+# unapproved. `strictDepBuilds` defaults to true, so any dependency with a build script must
+# appear here or the install fails. A dependency bump that introduces a new build script
+# therefore fails until it has been reviewed and added.
+allowBuilds:
+  # tsup's bundler. Without its postinstall the platform binary is missing and `build` fails.
+  esbuild: true

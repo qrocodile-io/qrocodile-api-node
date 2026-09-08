@@ -9,14 +9,19 @@ import { createQrApiClient, QrApiError } from '../src/index.ts'
  * the API changed its response shape, its error envelope, or its auth scheme. This suite is
  * the only thing that would not.
  *
- * **Key handling.** `QR_API_KEY` is a CI variable in the pipeline, so CI genuinely exercises
- * the API. Locally it is usually unset, and the suite skips rather than failing a `pnpm test`
- * that was never going to have a key.
+ * **Key handling.** `QR_API_KEY` is a repository secret, so CI genuinely exercises the API.
+ * Locally it is usually unset, and the suite skips rather than failing a `pnpm test` that was
+ * never going to have a key.
  *
  * That asymmetry is deliberate but has one sharp edge: a silently-skipped suite in CI looks
- * exactly like a passing one. So when `CI` is set and the key is not, this fails loudly
- * instead of skipping — a missing or expired CI variable should break the pipeline, not
- * quietly delete the only coverage of the live API.
+ * exactly like a passing one, so a missing or expired secret must break the build rather than
+ * quietly delete the only coverage of the live API. Hence `QR_API_INTEGRATION_REQUIRED`,
+ * which the workflow sets wherever secrets are actually available.
+ *
+ * It is a separate flag rather than a plain `CI` check because this repo is public: pull
+ * requests from forks get no secrets, by design. Keying off `CI` would fail every outside
+ * contributor's first PR for a reason they cannot fix. The workflow sets the flag for
+ * everything except fork PRs, so a stranger's PR skips the suite and ours still cannot.
  *
  * **Budget.** Renders are rate limited to 60 per minute for the whole account, shared with
  * anything else using that key. Keep this suite to a handful of calls.
@@ -25,11 +30,12 @@ import { createQrApiClient, QrApiError } from '../src/index.ts'
 const apiKey = process.env['QR_API_KEY']
 const baseUrl = process.env['QR_API_URL'] // undefined → the client's default
 
-if (!apiKey && process.env['CI']) {
+if (!apiKey && process.env['QR_API_INTEGRATION_REQUIRED'] === 'true') {
   throw new Error(
-    'QR_API_KEY is not set, but CI is. The integration suite is the only coverage of the live ' +
-      'API — skipping it here would leave the pipeline green with that coverage silently gone. ' +
-      'Set the QR_API_KEY CI variable, or remove this job.',
+    'QR_API_KEY is not set, but this run requires the integration suite. It is the only ' +
+      'coverage of the live API — skipping it here would leave the build green with that ' +
+      'coverage silently gone. Set the QR_API_KEY repository secret, or drop ' +
+      'QR_API_INTEGRATION_REQUIRED from the workflow.',
   )
 }
 
