@@ -124,7 +124,14 @@ Provenance — proof of which commit and which workflow run produced the tarball
 npm page — comes automatically with that, which is why no `--provenance` flag appears. It
 cannot be produced from a laptop, and cannot be added to a version afterwards.
 
-Add the entry to `CHANGELOG.md` before bumping, not after.
+**Add the entry to `CHANGELOG.md` before bumping.** The workflow reads the section under
+`## <version>` and uses it as the GitHub release notes, and it checks for that section
+_before_ publishing — a version with nothing written about it fails the release while
+re-tagging is still possible, rather than landing on npm with an empty release page. The
+error tells you how to move the tag.
+
+The release is created automatically once the publish succeeds, so the changelog is the only
+place release notes are written.
 
 A pre-release (`pnpm version prerelease --preid=beta`) publishes under its own dist-tag, so
 `npm install @qrocodile/api` never resolves to it.
