@@ -1,0 +1,115 @@
+name: Publish
+
+# Version tags only. `pnpm version <bump>` makes the commit and the tag; `git push
+# --follow-tags` (wired up as the `postversion` script) sends both, and the tag is what
+# lands here.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  # Required for npm provenance: the runner mints an OIDC token that signs an attestation
+  # linking the published tarball to this commit and this workflow run. Publishing from a
+  # laptop cannot produce one, and it cannot be added to a version after the fact.
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # The tag is the release's identity, package.json is what actually gets published.
+      # If they disagree, the tag is a lie about what is on npm — fail before anything ships.
+      - name: Check the tag matches package.json
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME implies version $TAG_VERSION, but package.json says $PKG_VERSION."
+            echo "Bump with 'pnpm version <bump>' rather than tagging by hand — it keeps the two in step."
+            exit 1
+          fi
+          echo "version=$PKG_VERSION" >> "$GITHUB_ENV"
+
+      # A pre-release must not become what `npm install @qrocodile/api` resolves to. Anything
+      # with a hyphen (0.2.1-beta.0) goes out under its own dist-tag instead of `latest`.
+      - name: Choose the dist-tag
+        run: |
+          case "$version" in
+            *-*) TAG="${version#*-}"; TAG="${TAG%%.*}" ;;
+            *)   TAG="latest" ;;
+          esac
+          echo "npm_tag=$TAG" >> "$GITHUB_ENV"
+          echo "Publishing $version under dist-tag '$TAG'."
+
+      # Already published is not a failure: it means this job was retried after succeeding.
+      # But anything other than a 404 is a real error and must not be read as "not published
+      # yet" — swallowing every error here is how a broken publish stays invisible.
+      - name: Skip if this version is already on npm
+        run: |
+          if VIEW_OUT=$(npm view "@qrocodile/api@${version}" version 2>&1); then
+            echo "@qrocodile/api@${version} is already published — nothing to do."
+            echo "already_published=true" >> "$GITHUB_ENV"
+          elif echo "$VIEW_OUT" | grep -q "E404"; then
+            echo "Not yet published — proceeding."
+          else
+            echo "npm view failed for a reason other than the version not existing yet:"
+            echo "$VIEW_OUT"
+            exit 1
+          fi
+
+      # Belt and braces. `prepublishOnly` runs this same gate, but running it as its own step
+      # means a failure names which check broke instead of surfacing as "publish failed".
+      - run: pnpm run typecheck
+        if: env.already_published != 'true'
+      - run: pnpm run lint
+        if: env.already_published != 'true'
+      - run: pnpm run codegen:check
+        if: env.already_published != 'true'
+      - run: pnpm run build
+        if: env.already_published != 'true'
+      - run: pnpm run test
+        if: env.already_published != 'true'
+        env:
+          QR_API_KEY: ${{ secrets.QR_API_KEY }}
+          QR_API_INTEGRATION_REQUIRED: true
+
+      # `npm publish` rather than `pnpm publish`: provenance is an npm feature, and npm is
+      # what generates the attestation. `--access public` is already in publishConfig; it is
+      # repeated here because a scoped package defaulting to restricted publishes privately
+      # and silently, and that is not a mistake worth risking to save a flag.
+      #
+      # To move to trusted publishing later: configure this repo and workflow as a trusted
+      # publisher on the package's npm settings page, then delete the NODE_AUTH_TOKEN line.
+      - name: Publish to npm
+        if: env.already_published != 'true'
+        run: npm publish --provenance --access public --tag "$npm_tag"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summary
+        run: |
+          {
+            if [ "$already_published" = "true" ]; then
+              echo "### No-op — @qrocodile/api@$version was already published"
+            else
+              echo "### Published @qrocodile/api@$version"
+              echo ""
+              echo "- dist-tag: \`$npm_tag\`"
+              echo "- https://www.npmjs.com/package/@qrocodile/api/v/$version"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

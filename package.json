@@ -71,7 +71,8 @@
     "generate": "node examples/generate.ts",
     "logo": "node examples/logo.ts",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "postversion": "git push --follow-tags"
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0"

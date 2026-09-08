@@ -103,9 +103,25 @@ QR_API_KEY=qk_live_… node examples/logo.ts "https://qrocodile.io" website svg
 
 ## Releasing
 
-Not yet automated — a publish-on-tag workflow is the remaining piece. Until it exists,
-`prepublishOnly` is the gate: it runs `codegen:check`, `typecheck`, `lint` and the full test
-suite before anything leaves the machine.
+```bash
+pnpm version minor   # bumps package.json, commits, tags, and pushes (postversion)
+```
+
+The tag is what publishes. `.github/workflows/publish.yml` fires on `v*`, checks that the tag
+and `package.json` agree, runs the full gate, and publishes with `--provenance` — an
+attestation tying the tarball to the commit and workflow run that built it, which npm shows
+on the package page. It cannot be produced from a laptop, and cannot be added to a version
+afterwards.
+
+Add the entry to `CHANGELOG.md` before bumping, not after.
+
+A pre-release (`pnpm version prerelease --preid=beta`) publishes under its own dist-tag, so
+`npm install @qrocodile/api` never resolves to it.
+
+Publishing the same version twice is a no-op rather than a failure, so a retried job is safe.
+
+`prepublishOnly` runs the same checks locally, so a manual `npm publish` cannot ship stale
+types or a stale bundle either — it just gets no provenance.
 
 The package is published to public npm as `@qrocodile/api`. `publishConfig` rewrites the
 manifest at pack time so the published entry points target `dist/` while local development
