@@ -108,10 +108,16 @@ pnpm version minor   # bumps package.json, commits, tags, and pushes (postversio
 ```
 
 The tag is what publishes. `.github/workflows/publish.yml` fires on `v*`, checks that the tag
-and `package.json` agree, runs the full gate, and publishes with `--provenance` — an
-attestation tying the tarball to the commit and workflow run that built it, which npm shows
-on the package page. It cannot be produced from a laptop, and cannot be added to a version
-afterwards.
+and `package.json` agree, runs the full gate, and publishes.
+
+There is no npm token anywhere. npm is configured to trust this repository, this workflow
+filename and the `npm` environment, so the runner authenticates with a short-lived OIDC
+credential instead. Renaming `publish.yml`, or changing the job's `environment:`, breaks
+publishing until npm's trusted publisher entry is updated to match.
+
+Provenance — proof of which commit and which workflow run produced the tarball, shown on the
+npm page — comes automatically with that, which is why no `--provenance` flag appears. It
+cannot be produced from a laptop, and cannot be added to a version afterwards.
 
 Add the entry to `CHANGELOG.md` before bumping, not after.
 

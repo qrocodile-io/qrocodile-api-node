@@ -9,9 +9,11 @@ on:
       - 'v*'
 
 permissions:
-  # Required for npm provenance: the runner mints an OIDC token that signs an attestation
-  # linking the published tarball to this commit and this workflow run. Publishing from a
-  # laptop cannot produce one, and it cannot be added to a version after the fact.
+  # The whole basis of publishing here. npm trusts this repo and workflow rather than a
+  # token, and `id-token: write` is what lets the runner mint the OIDC token that proves it.
+  # It also produces the provenance attestation — proof of which commit and which run built
+  # the tarball, which a laptop cannot generate and which cannot be added to a version after
+  # the fact. Remove this and publishing stops working entirely.
   id-token: write
   contents: read
 
@@ -88,18 +90,24 @@ jobs:
           QR_API_KEY: ${{ secrets.QR_API_KEY }}
           QR_API_INTEGRATION_REQUIRED: true
 
-      # `npm publish` rather than `pnpm publish`: provenance is an npm feature, and npm is
-      # what generates the attestation. `--access public` is already in publishConfig; it is
-      # repeated here because a scoped package defaulting to restricted publishes privately
-      # and silently, and that is not a mistake worth risking to save a flag.
+      # No token. npm is configured with this repo, this workflow filename and the `npm`
+      # environment as a trusted publisher, so authentication is the runner's OIDC identity —
+      # short-lived, bound to this workflow, and impossible to exfiltrate. Changing the
+      # workflow's filename or its `environment:` breaks publishing until npm's trusted
+      # publisher entry is updated to match.
       #
-      # To move to trusted publishing later: configure this repo and workflow as a trusted
-      # publisher on the package's npm settings page, then delete the NODE_AUTH_TOKEN line.
+      # No `--provenance` either: trusted publishing generates and publishes the attestation
+      # by default. Passing the flag would suggest it is what produces provenance, and
+      # someone would eventually "fix" the workflow by re-adding it elsewhere.
+      #
+      # `--access public` is already in publishConfig and repeated here because a scoped
+      # package defaulting to restricted publishes privately and silently — not a mistake
+      # worth risking to save a flag.
+      #
+      # Requires npm >= 11.5.1 and Node >= 22.14.0; the pinned 24.19.0 ships npm 11.12.1.
       - name: Publish to npm
         if: env.already_published != 'true'
-        run: npm publish --provenance --access public --tag "$npm_tag"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --tag "$npm_tag"
 
       - name: Summary
         run: |
