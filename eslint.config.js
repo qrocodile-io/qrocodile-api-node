@@ -1,5 +1,6 @@
 import js from '@eslint/js'
 import importPlugin from 'eslint-plugin-import'
+import nodePlugin from 'eslint-plugin-n'
 import tseslint from 'typescript-eslint'
 
 // Carried over from the monorepo this package was extracted from, minus everything that
@@ -13,6 +14,32 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.strict,
+  {
+    // The shipped code may only use Node built-ins that exist across the whole engines.node
+    // range, down to the minor version. The test matrix only runs each line's latest release,
+    // so this is what covers the older ones. Tooling, tests and examples run on .node-version
+    // and are deliberately out of scope.
+    files: ['src/**/*.ts'],
+    ignores: ['src/**/*.test.ts'],
+    plugins: { n: nodePlugin },
+    // The rule only checks globals that are declared, so without these it sees imported
+    // built-ins but not `process.*`, `AbortSignal.*`, `navigator` and the like. The list
+    // comes from the plugin itself, so it needs no dependency of its own.
+    languageOptions: {
+      globals: nodePlugin.configs['flat/recommended-module'].languageOptions.globals,
+    },
+    rules: {
+      'n/no-unsupported-features/node-builtins': [
+        'error',
+        {
+          // The rule counts these as experimental until Node 21. They are on by default and
+          // unflagged from Node 18, and the client cannot work without them: openapi-fetch
+          // calls the global fetch.
+          ignores: ['fetch', 'Request', 'Response'],
+        },
+      ],
+    },
+  },
   {
     plugins: {
       import: importPlugin,
