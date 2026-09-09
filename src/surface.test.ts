@@ -3,6 +3,7 @@ import { describe, expectTypeOf, it } from 'vitest'
 import {
   createQrApiClient,
   QrApiError,
+  QrApiResponseError,
   type ConfirmKeyResult,
   type QrApiClient,
   type QrApiClientOptions,
@@ -100,6 +101,20 @@ describe('errors', () => {
     expectTypeOf<QrApiError['status']>().toEqualTypeOf<number>()
     expectTypeOf<QrApiError['code']>().toEqualTypeOf<QrApiErrorCode>()
     expectTypeOf<QrApiError>().toExtend<Error>()
+  })
+
+  /**
+   * The split that keeps `code` honest: `status` lives on the base class, which is what a
+   * gateway error page gets, and `code` exists only on the subclass, which is only ever
+   * constructed from the API's documented envelope. Asserting `code` is absent from the base
+   * is the load-bearing half: the moment it appears there it has to be optional, and an
+   * optional `code` is exactly the `QrApiErrorCode | undefined` this design exists to avoid.
+   */
+  it('puts status on the base class and code only on the subclass', () => {
+    expectTypeOf<QrApiResponseError['status']>().toEqualTypeOf<number>()
+    expectTypeOf<QrApiResponseError>().toExtend<Error>()
+    expectTypeOf<QrApiResponseError>().not.toHaveProperty('code')
+    expectTypeOf<QrApiError>().toExtend<QrApiResponseError>()
   })
 
   /**

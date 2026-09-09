@@ -8,6 +8,15 @@ usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breakin
 ### Added
 
 - The `retroConsole` preset and the `knit` module style, which the API now offers.
+- `QrApiResponseError`, thrown when the API answers with an error status whose body is not
+  the documented `{ error: { code, message } }` envelope: a gateway or CDN error page, an
+  empty body from a load balancer, or a JSON body of another shape. It carries `status` but
+  no `code`, because there is none to report, and an invented one would put a value in
+  `code` that `QrApiErrorCode` says cannot occur.
+- `QrApiError` now extends `QrApiResponseError`. Existing `instanceof QrApiError` and
+  `instanceof Error` checks are unaffected, and code that only needs the status can catch
+  the base class to cover both. When you branch on both, check `QrApiError` first, because
+  the base class matches a documented API error too.
 
 ### Changed
 
@@ -19,6 +28,18 @@ usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breakin
   verification email carries its reference as `#r=…` rather than `?r=…`. Module and finder
   style parameters outside a style’s declared range are refused. `finderUseModuleStyle` and
   `finderColorInherit` default to `false`. The types themselves are unchanged.
+
+### Fixed
+
+- An error response that was not the documented envelope no longer produces a `TypeError`
+  from inside the client. Every such response (an HTML error page, a plain-text body, a
+  body that will not parse as JSON, an envelope with `code` or `message` missing) now
+  rejects with a `QrApiResponseError` naming the status and quoting what arrived. Each of
+  those previously failed on whichever property access it happened to reach first.
+- A failed request with an empty or `null` body no longer **resolves**. openapi-fetch reports
+  those as `''` and `null`, both falsy, so the client’s error branch was skipped and
+  `renderSvg` resolved with `undefined` against a declared `Promise<string>` (and `renderPng`
+  against `Promise<ArrayBuffer>`). The check is now on `response.ok`.
 
 ## 0.1.1-beta.0
 

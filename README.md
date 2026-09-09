@@ -69,17 +69,40 @@ then use its “Copy JSON” button and paste the result in.
 
 ## Errors
 
-When the API responds with an error, every method throws a `QrApiError` with `status` and
-`code`. Handle failures with `try/catch`:
+When the API responds with an error, every method throws, so handle failures with
+`try/catch`. There are three outcomes, and you can tell them apart:
+
+| What happened                                      | What you get                             |
+| -------------------------------------------------- | ---------------------------------------- |
+| The API answered with one of its documented errors | `QrApiError`, with `status` and `code`   |
+| Any other error response (gateway, empty body)     | `QrApiResponseError`, with `status` only |
+| The request never completed (offline, DNS)         | The underlying `fetch` error, untouched  |
 
 ```ts
-import { createQrApiClient, QrApiError } from '@qrocodile/api'
+import { createQrApiClient, QrApiError, QrApiResponseError } from '@qrocodile/api'
 
 try {
   const svg = await qr.renderSvg({ content: 'https://qrocodile.io', design: { preset: 'ocean' } })
 } catch (err) {
-  if (err instanceof QrApiError) console.error(err.status, err.code, err.message)
+  if (err instanceof QrApiError) {
+    // The API described this failure itself, so branch on `code`.
+    console.error(err.status, err.code, err.message)
+  } else if (err instanceof QrApiResponseError) {
+    // Something answered, but not the API: a gateway error page, an empty body from a load
+    // balancer. There is no `code` to branch on, only `status`.
+    console.error(err.status, err.message)
+  } else {
+    throw err // never reached the API
+  }
 }
+```
+
+`QrApiError` extends `QrApiResponseError`, so check it first. Reversing the order above
+would send every documented API error into the second branch. In return, code that only
+needs the status can catch the base class and cover both:
+
+```ts
+if (err instanceof QrApiResponseError && err.status >= 500) return retry()
 ```
 
 Branch on `code`, not `message`: the message is written for people and may be reworded.
@@ -88,8 +111,9 @@ Branch on `code`, not `message`: the message is written for people and may be re
 this package removes a code, a `case` for it stops compiling; to be told about added codes as
 well, end the `switch` with a `default` that assigns `code` to `never`.
 
-Network failures (offline, DNS, aborted) reject with the underlying `fetch` error instead.
-They never reached the API, so there is no status or code.
+A code the API adds before this package catches up still arrives as a normal `QrApiError`.
+The client checks that `code` is present, not that it is one it already knows, so an
+addition on the API side never breaks your application.
 
 ## Full API documentation
 
