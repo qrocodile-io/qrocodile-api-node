@@ -57,6 +57,51 @@ tsup emits `dist/` (ESM + CJS + rolled-up `.d.ts`), then `scripts/check-dts.mjs`
 build if the declarations reference anything outside the package or re-export the generated
 types.
 
+## Dependencies
+
+### `@types/node` tracks `engines.node`, not the newest release
+
+`engines.node` is `>=20`, so the typings are pinned to the Node 20 line. Developing against
+`@types/node@24` — which is what a plain `^` range drifts to — type-checks APIs a supported
+consumer's runtime does not have, and the mismatch then surfaces at _their_ runtime instead
+of in this build. `pnpm outdated` reports this several majors behind; that is the correct
+state here, not a bump waiting to be applied.
+
+The pin is `~20.19.0` and not `~20.0.0`, which is what "match the floor" would suggest.
+`@types/node@20.0.0` predates the global `fetch`, `Response` and `Request` declarations and
+does not type-check this package at all — the typings lagged what Node 20.0.0 itself
+shipped. `~20.19.0` is the tightest bound that actually works. It covers everything added
+_across_ the 20 line, so an API introduced in, say, 20.12 still type-checks even though the
+declared floor is 20.0.0. That residual gap is accepted knowingly: this package needs
+nothing newer than global `fetch`.
+
+Check the pin rather than trusting it, by reaching for an API with a known arrival:
+
+```bash
+printf "import { glob } from 'node:fs/promises'\nvoid glob\n" > /tmp/probe.ts
+pnpm exec tsc --noEmit --types node --module node16 --moduleResolution node16 /tmp/probe.ts
+```
+
+`fs/promises`' `glob` arrived in Node 22, so that must fail. Under the previous `^24` range
+it type-checked cleanly, which was the bug — as did `node:sqlite`, added in Node 22.5.
+
+Raise this only when `engines.node` is raised, which is breaking for consumers and belongs in
+its own release.
+
+**That conversation is overdue.** Node 20 reached end of life on 2026-04-30, and pnpm 11
+requires Node >= 22.13 — so the pinned toolchain cannot run on the floor this package
+advertises, and no CI job can exercise it. Moving the floor to `>=22` means, all verified
+together: `@types/node` at `~22.20.0` (early 22.x has a `Buffer`/`ArrayBufferLike` variance
+bug that breaks `examples/`, so `~22.0.0` does not compile), `target: 'node22'` in
+tsup.config.ts, the readme's "Node 20 or newer", and a breaking-change entry in the
+changelog.
+
+### Everything else
+
+Ordinary ranges, bumped as usual. `pnpm peers check` after any major upgrade — a caret range
+that exceeds a peer's declared support is a breakage scheduled for whenever the lockfile is
+next refreshed.
+
 ## Tests
 
 ```bash
