@@ -19,7 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
  * one runtime dependency — is copied from this package's own resolved copy.
  */
 
-const EXPECTED_EXPORTS = ['QrApiError', 'createQrApiClient']
+const EXPECTED_EXPORTS = ['QrApiError', 'QrApiResponseError', 'createQrApiClient']
 
 let consumer: string
 
@@ -153,20 +153,32 @@ describe('loading it', () => {
       const qr = createQrApiClient({ apiKey: 'qk_live_x' })
       const methods = Object.keys(qr).sort().join(',')
       const err = new QrApiError('boom', 429, 'RATE_LIMITED')
-      console.log([methods, err instanceof QrApiError, err instanceof Error, err.status].join('|'))`
+      const gateway = new QrApiResponseError('gateway', 503)
+      console.log([
+        methods,
+        err instanceof QrApiError,
+        err instanceof Error,
+        err.status,
+        // The subclass chain has to survive the bundler, separately per format: a rollup that
+        // emitted two independent Error subclasses would leave this false and quietly break
+        // status-only handling for anyone who catches the base.
+        err instanceof QrApiResponseError,
+        gateway instanceof QrApiResponseError,
+        gateway instanceof QrApiError,
+      ].join('|'))`
 
-    const expected = 'confirmKey,registerKey,renderPng,renderSvg|true|true|429'
+    const expected = 'confirmKey,registerKey,renderPng,renderSvg|true|true|429|true|true|false'
 
     expect(
       runInConsumer(
         'client.mjs',
-        `import { createQrApiClient, QrApiError } from '@qrocodile/api'${body}`,
+        `import { createQrApiClient, QrApiError, QrApiResponseError } from '@qrocodile/api'${body}`,
       ),
     ).toBe(expected)
     expect(
       runInConsumer(
         'client.cjs',
-        `const { createQrApiClient, QrApiError } = require('@qrocodile/api')${body}`,
+        `const { createQrApiClient, QrApiError, QrApiResponseError } = require('@qrocodile/api')${body}`,
       ),
     ).toBe(expected)
   })
