@@ -321,7 +321,7 @@ export interface operations {
            * @description The address the code was sent to. Provide either this or `rid`.
            */
           email?: string
-          /** @description Reference from the link in the verification email (`?r=…`), so someone arriving that way need not retype their address. Provide either this or `email`. It selects the pending signup but authorizes nothing on its own — the code does that. */
+          /** @description Reference from the link in the verification email (`#r=…`), so someone arriving that way need not retype their address. Provide either this or `email`. It selects the pending signup but authorizes nothing on its own — the code does that. */
           rid?: string
         }
       }
@@ -623,11 +623,11 @@ export interface operations {
           | 'deepSea'
         /** @description Image width and height in pixels. Defaults to 300 for SVG and 1,024 for PNG. */
         size?: number
-        /** @description Quiet zone around the QR code, in modules. One module is the minimum, so 0 and 1 both render a single-module zone. */
+        /** @description Quiet zone around the QR code, in modules. One module is the minimum. */
         margin?: number
-        /** @description Module (foreground) color, as `#rgb`, `#rrggbb` or `#rrggbbaa`. A preset sets its own — see `preset` for when this overrides it. For a gradient or a multi-color palette, use POST /v1/qr. */
+        /** @description Module (foreground) color, as `#rgb` or `#rrggbb`. A preset sets its own — see `preset` for when this overrides it. For a gradient or a multi-color palette, use POST /v1/qr. */
         moduleColor?: string
-        /** @description Background color, as `#rgb`, `#rrggbb` or `#rrggbbaa`, or `transparent` to leave it unpainted. A preset sets its own, which this overrides. */
+        /** @description Background color, as `#rgb` or `#rrggbb`, or `transparent` to leave it unpainted. A preset sets its own, which this overrides. */
         background?: string | 'transparent'
       }
       header?: never
@@ -1005,7 +1005,7 @@ export interface operations {
               | 'variedDots'
               | 'ripple'
               | 'isometric'
-            /** @description Tuning parameters for the module style. Which keys it accepts depends on the style: the [QR Designer](https://qrocodile.io/en/) exposes them as that style’s own sliders, and they are tabulated per style on the [API page](https://qrocodile.io/en/qr-code-api/). An unrecognized key is ignored rather than rejected — a style that drops a parameter should not break a stored design — though a key over 64 characters is refused. */
+            /** @description Tuning parameters for the module style. Which keys it accepts depends on the style: the [QR Designer](https://qrocodile.io/en/) exposes them as that style’s own sliders, and they are tabulated per style on the [API page](https://qrocodile.io/en/qr-code-api/). A value outside the range or options the style declares is refused. An unrecognized key is ignored rather than rejected — a style that drops a parameter should not break a stored design — though a key over 64 characters is refused. */
             moduleStyleParams?: {
               [key: string]: number | string
             }
@@ -1034,18 +1034,21 @@ export interface operations {
               | 'sticker'
               | 'segmented'
               | 'dotted'
-            /** @description Tuning parameters for the finder style. Which keys it accepts depends on the style: the [QR Designer](https://qrocodile.io/en/) exposes them as that style’s own sliders, and they are tabulated per style on the [API page](https://qrocodile.io/en/qr-code-api/). An unrecognized key is ignored rather than rejected — a style that drops a parameter should not break a stored design — though a key over 64 characters is refused. */
+            /** @description Tuning parameters for the finder style. Which keys it accepts depends on the style: the [QR Designer](https://qrocodile.io/en/) exposes them as that style’s own sliders, and they are tabulated per style on the [API page](https://qrocodile.io/en/qr-code-api/). A value outside the range or options the style declares is refused. An unrecognized key is ignored rather than rejected — a style that drops a parameter should not break a stored design — though a key over 64 characters is refused. */
             finderStyleParams?: {
               [key: string]: number | string
             }
-            /** @description Let the module style draw the corner finders itself. Only effective for styles that can render finders, and the only way to express relief and 3D designs whose corners must stay depth-sorted with the pattern. Supersedes `finderStyleId`. */
-            finderUseModuleStyle?: boolean
-            /** @description Corners take their per-cell color from the pattern instead of `finderFrameColor` and `finderEyeColor`. */
-            finderColorInherit?: boolean
             /**
-             * @description Color of the modules — a solid hex color or a gradient.
-             * @default #000000
+             * @description Let the module style draw the corner finders itself. Only effective for styles that can render finders, and the only way to express relief and 3D designs whose corners must stay depth-sorted with the pattern. Supersedes `finderStyleId`.
+             * @default false
              */
+            finderUseModuleStyle?: boolean
+            /**
+             * @description Corners take their per-cell color from the pattern instead of `finderFrameColor` and `finderEyeColor`.
+             * @default false
+             */
+            finderColorInherit?: boolean
+            /** @description Color of the modules — a solid hex color or a gradient, `#000000` without one. Under a `modulePalette` it is the base fill most styles draw beneath the palette, and defaults to the palette’s first color. */
             moduleColor?:
               | string
               | {
@@ -1055,7 +1058,7 @@ export interface operations {
                    */
                   type: 'linear' | 'radial'
                   /**
-                   * @description Angle of a linear gradient, in degrees. Ignored by a radial gradient.
+                   * @description Angle of a linear gradient, in degrees, 0–360. Ignored by a radial gradient.
                    * @default 0
                    */
                   angle?: number
@@ -1111,7 +1114,7 @@ export interface operations {
                    */
                   type: 'linear' | 'radial'
                   /**
-                   * @description Angle of a linear gradient, in degrees. Ignored by a radial gradient.
+                   * @description Angle of a linear gradient, in degrees, 0–360. Ignored by a radial gradient.
                    * @default 0
                    */
                   angle?: number
@@ -1136,7 +1139,7 @@ export interface operations {
                    */
                   type: 'linear' | 'radial'
                   /**
-                   * @description Angle of a linear gradient, in degrees. Ignored by a radial gradient.
+                   * @description Angle of a linear gradient, in degrees, 0–360. Ignored by a radial gradient.
                    * @default 0
                    */
                   angle?: number
@@ -1157,7 +1160,7 @@ export interface operations {
              */
             background?: string | 'transparent'
             /**
-             * @description Quiet zone around the QR code, in modules. One module is the minimum, so 0 and 1 both render a single-module zone.
+             * @description Quiet zone around the QR code, in modules. One module is the minimum.
              * @default 2
              */
             margin?: number
