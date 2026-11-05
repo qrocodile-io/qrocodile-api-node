@@ -5,6 +5,14 @@ usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breakin
 
 ## Unreleased
 
+### Changed
+
+- The type documentation now matches the deployed API. Colours (`moduleColor`, `background`)
+  are `#rgb` or `#rrggbb`; the API no longer accepts `#rrggbbaa`. The link in the
+  verification email carries its reference as `#r=…` rather than `?r=…`. Module and finder
+  style parameters outside a style's declared range are refused. `finderUseModuleStyle` and
+  `finderColorInherit` default to `false`. The types themselves are unchanged.
+
 ## 0.1.1-beta.0
 
 No functional changes — `dist/` is byte-identical to 0.1.0.

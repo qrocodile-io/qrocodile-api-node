@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- this is a CLI; stdout/stderr are its interface */
 /**
  * Interactive signup helper for the QRocodile QR Code API.
  *
