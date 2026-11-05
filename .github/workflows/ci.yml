@@ -72,6 +72,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ steps.floor.outputs.version }}
+          # setup-node caches for the packageManager in package.json by default, which runs
+          # pnpm, which does not start on this Node. Nothing below uses pnpm anyway.
+          package-manager-cache: false
 
       # A bare consumer with npm and nothing of ours, resolving openapi-fetch from the registry
       # the way an installer would.
