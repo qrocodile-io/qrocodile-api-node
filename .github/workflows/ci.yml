@@ -44,3 +44,42 @@ jobs:
           # PR for something they cannot fix. Everywhere else — our own PRs, pushes to main,
           # the nightly run — a missing secret has to fail rather than silently skip.
           QR_API_INTEGRATION_REQUIRED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+
+  # `validate` runs on .node-version because the toolchain cannot run any older: pnpm 11
+  # needs Node >= 22.13, vite >= 20.19. What consumers run is only the packed tarball, so
+  # that is what this job takes down to the exact version engines.node admits.
+  node-floor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `prepack` builds, so this is the same tarball `npm publish` would upload.
+      - run: pnpm pack --pack-destination "$RUNNER_TEMP/pack"
+
+      # Read from engines.node rather than repeated here, so raising the floor moves this job.
+      - id: floor
+        run: node -e "const m = /^>=(\d+)$/.exec(require('./package.json').engines.node); if (!m) throw new Error('engines.node is not of the form >=N'); console.log('version=' + m[1] + '.0.0')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ steps.floor.outputs.version }}
+
+      # A bare consumer with npm and nothing of ours, resolving openapi-fetch from the registry
+      # the way an installer would.
+      - run: |
+          consumer="$RUNNER_TEMP/consumer"
+          mkdir "$consumer"
+          cp scripts/floor-smoke.mjs "$consumer/"
+          cd "$consumer"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/pack/*.tgz
+          node floor-smoke.mjs

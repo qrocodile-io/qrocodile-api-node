@@ -72,8 +72,8 @@ The pin is `~20.19.0` and not `~20.0.0`, which is what "match the floor" would s
 does not type-check this package at all — the typings lagged what Node 20.0.0 itself
 shipped. `~20.19.0` is the tightest bound that actually works. It covers everything added
 _across_ the 20 line, so an API introduced in, say, 20.12 still type-checks even though the
-declared floor is 20.0.0. That residual gap is accepted knowingly: this package needs
-nothing newer than global `fetch`.
+declared floor is 20.0.0. The types cannot close that gap; the `node-floor` CI job does (see
+below).
 
 Check the pin rather than trusting it, by reaching for an API with a known arrival:
 
@@ -88,13 +88,19 @@ it type-checked cleanly, which was the bug — as did `node:sqlite`, added in No
 Raise this only when `engines.node` is raised, which is breaking for consumers and belongs in
 its own release.
 
-**That conversation is overdue.** Node 20 reached end of life on 2026-04-30, and pnpm 11
-requires Node >= 22.13 — so the pinned toolchain cannot run on the floor this package
-advertises, and no CI job can exercise it. Moving the floor to `>=22` means, all verified
-together: `@types/node` at `~22.20.0` (early 22.x has a `Buffer`/`ArrayBufferLike` variance
-bug that breaks `examples/`, so `~22.0.0` does not compile), `target: 'node22'` in
-tsup.config.ts, the readme's "Node 20 or newer", and a breaking-change entry in the
-changelog.
+### The floor itself is tested at runtime
+
+Development and the `validate` CI job run on `.node-version`, because the toolchain cannot
+run on Node 20.0.0: pnpm 11 needs Node >= 22.13, and vite (under vitest) >= 20.19. None of
+that ships, though. Consumers run only the packed tarball, so the `node-floor` CI job packs it,
+installs it with plain npm into an empty project on exactly the version `engines.node` admits
+(read from package.json, so it follows the floor), and runs `scripts/floor-smoke.mjs` there
+against both the ESM and the CJS entry point. That is what guarantees the floor; the
+`@types/node` pin only catches a newer API at compile time, before it gets that far.
+
+If the floor is ever raised, the `@types/node` pin must move with it. For `>=22` that means
+`~22.20.0`, not `~22.0.0`: early 22.x typings have a `Buffer`/`ArrayBufferLike` variance bug
+that breaks `examples/`.
 
 ### Everything else
 
