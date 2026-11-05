@@ -51,13 +51,51 @@ export type ConfirmKeyResult =
   operations['confirmKey']['responses'][200]['content']['application/json']
 
 /**
- * Thrown by the client helpers when the API returns an error response (non-2xx).
- * Genuine network failures (offline, DNS, aborted) reject with the underlying `fetch`
- * error instead — they never reached the API, so there is no status or code.
+ * Thrown when the API answers with an error status (non-2xx) whose body is *not* the
+ * documented `{ error: { code, message } }` envelope — a gateway or CDN error page, an empty
+ * body from a load balancer, a JSON body of some other shape. The request reached something,
+ * but not the API's own error handling, so `status` is all this client can state with
+ * confidence and there is no `code`.
+ *
+ * Inventing a code here is the one thing that must not happen: {@link QrApiErrorCode} is a
+ * closed union precisely so a `switch` over it can be exhaustive, and a made-up member would
+ * make that promise false.
+ *
+ * Catch this when the status is all you need — retry logic, say:
+ *
+ * ```ts
+ * catch (err) {
+ *   if (err instanceof QrApiResponseError && err.status >= 500) return retry()
+ * }
+ * ```
+ *
+ * {@link QrApiError} is a **subclass**, so `instanceof QrApiResponseError` is true for a
+ * documented API error too. Test for `QrApiError` first if you branch on both.
  */
-export class QrApiError extends Error {
+export class QrApiResponseError extends Error {
   /** HTTP status of the error response. */
   readonly status: number
+
+  constructor(message: string, status: number, options?: { cause?: unknown }) {
+    super(message, options)
+    this.name = 'QrApiResponseError'
+    this.status = status
+  }
+}
+
+/**
+ * Thrown by the client helpers when the API returns one of its own documented error
+ * responses — an error status carrying the `{ error: { code, message } }` envelope.
+ *
+ * Three outcomes are possible from any helper, and they are distinguishable:
+ *
+ * | what happened                                   | what you get                          |
+ * | ----------------------------------------------- | ------------------------------------- |
+ * | the API answered with a documented error        | `QrApiError` — `status` and `code`    |
+ * | some other error response (gateway, empty body) | {@link QrApiResponseError} — `status` |
+ * | the request never completed (offline, DNS)      | the underlying `fetch` error, as-is   |
+ */
+export class QrApiError extends QrApiResponseError {
   /**
    * Machine-readable error code from the API's `{ error: { code, message } }` body. Stable, and
    * the field to branch on — `message` is written for a human and may be reworded.
@@ -70,16 +108,84 @@ export class QrApiError extends Error {
     code: QrApiErrorCode,
     options?: { cause?: unknown },
   ) {
-    super(message, options)
+    super(message, status, options)
     this.name = 'QrApiError'
-    this.status = status
     this.code = code
   }
 }
 
+/** The API's documented error body, as far as this client needs to know it. */
+interface QrApiErrorEnvelope {
+  error: { code: QrApiErrorCode; message: string }
+}
+
+/**
+ * Whether an error body is the API's documented envelope.
+ *
+ * openapi-fetch parses the error body as JSON only when the response says
+ * `application/json`, and hands back the raw string otherwise — so what arrives here can be
+ * a string, `null`, an array, an object with no `error` key, or an envelope with a piece
+ * missing. The first four all fail the same way, on `typeof error !== 'object'`; only the
+ * last group needs conditions of its own.
+ *
+ * `code` is checked for *being a non-empty string*, deliberately not for membership of
+ * {@link QrApiErrorCode}. That union describes the spec as it stands today; a code the API
+ * adds tomorrow is still a perfectly good API error, and rejecting it would break every
+ * consumer over a change that harmed nobody. The union is pinned by a test instead, which is
+ * the maintainer's signal to widen it — and costs consumers nothing in the meantime.
+ */
+function isErrorEnvelope(body: unknown): body is QrApiErrorEnvelope {
+  // Optional chaining rather than a `typeof body === 'object'` gate, and no `Array.isArray`:
+  // a string body, an array, `null` and a missing body all leave `error` undefined and fall
+  // out on the next line, and an array `error` has no `code` so it falls out below. Written
+  // that way on purpose — an earlier version spelled all three out, and a mutation sweep
+  // showed those operands could be deleted with the suite still green, which is the same
+  // thing as them not being guards at all. Every condition that survives here has a test
+  // that fails on its own when it is removed.
+  const error = (body as { error?: unknown } | null | undefined)?.error
+  if (typeof error !== 'object' || error === null) return false
+
+  const { code, message } = error as { code?: unknown; message?: unknown }
+  return typeof code === 'string' && code !== '' && typeof message === 'string' && message !== ''
+}
+
+/** `503 Service Unavailable`, or bare `503` when the response carries no status text. */
+function describeStatus(response: Response): string {
+  return response.statusText === ''
+    ? String(response.status)
+    : `${response.status} ${response.statusText}`
+}
+
+/** How much of an unreadable body to quote back. A gateway error page can be kilobytes. */
+const BODY_SNIPPET_LENGTH = 200
+
+/**
+ * A short, quoted rendering of whatever actually arrived.
+ *
+ * Naming it is the difference between "the response was not an API error" and "the response
+ * was a 503 HTML page", and it costs one interpolation. Whitespace is collapsed because the
+ * markup is almost always pretty-printed and the useful part is the first line.
+ */
+function describeBody(body: unknown): string {
+  const rendered = typeof body === 'string' ? body : JSON.stringify(body)
+  const collapsed = rendered === undefined ? '' : rendered.replace(/\s+/g, ' ').trim()
+
+  if (collapsed === '') return 'an empty body'
+  return collapsed.length > BODY_SNIPPET_LENGTH
+    ? `${JSON.stringify(collapsed.slice(0, BODY_SNIPPET_LENGTH))} (truncated)`
+    : JSON.stringify(collapsed)
+}
+
 /**
  * Turn an openapi-fetch `{ data, error, response }` result into the bare data, throwing
- * a {@link QrApiError} on an API error response.
+ * {@link QrApiError} on a documented API error and {@link QrApiResponseError} on any other
+ * error response.
+ *
+ * The branch is on `response.ok`, **not** on the truthiness of `error`. openapi-fetch reports
+ * an empty body as `''` and a literal `null` body as `null`, both falsy — so branching on
+ * `error` lets a failed request fall through and resolve with `undefined`, against a declared
+ * `Promise<string>` or `Promise<ArrayBuffer>`. That is the failure a consumer would chase
+ * furthest from its cause, because it type-checks at every call site.
  *
  * `data` is deliberately `unknown` rather than inferred, so `T` comes from each caller's
  * declared return type instead of from the spec. That matters for the render endpoints: the
@@ -89,21 +195,22 @@ export class QrApiError extends Error {
  * signature in this package a consumer is most likely to act on and get wrong.
  */
 async function unwrap<T>(
-  promise: Promise<{
-    data?: unknown
-    error?: { error: { code: QrApiErrorCode; message: string } }
-    response: Response
-  }>,
+  promise: Promise<{ data?: unknown; error?: unknown; response: Response }>,
 ): Promise<T> {
-  const result = await promise
-  if (result.error) {
-    throw new QrApiError(
-      result.error.error.message,
-      result.response.status,
-      result.error.error.code,
+  const { data, error, response } = await promise
+
+  if (!response.ok) {
+    if (isErrorEnvelope(error)) {
+      throw new QrApiError(error.error.message, response.status, error.error.code)
+    }
+    throw new QrApiResponseError(
+      `The QRocodile API answered with status ${describeStatus(response)}, and a body this ` +
+        `client cannot read as an API error: ${describeBody(error)}`,
+      response.status,
     )
   }
-  return result.data as T
+
+  return data as T
 }
 
 /**
@@ -111,10 +218,12 @@ async function unwrap<T>(
  *
  * Render helpers spare you the raw path, HTTP verb, and `parseAs` juggling: pick the
  * output format by method name and the return type follows (SVG → `string`, PNG →
- * `ArrayBuffer`). Each helper resolves to the data directly and throws {@link QrApiError}
- * on an API error response, so you handle failures with `try/catch` (which also plays well
- * with TanStack Query / SWR). The render helpers use `POST /v1/qr`, which supports every
- * option; the `GET /v1/qr` variant has no method yet (add one if it's needed).
+ * `ArrayBuffer`). Each helper resolves to the data directly and rejects on failure, so you
+ * handle errors with `try/catch` (which also plays well with TanStack Query / SWR): a
+ * documented API error throws {@link QrApiError}, any other error response throws
+ * {@link QrApiResponseError}, and a request that never completed rejects with the underlying
+ * `fetch` error. The render helpers use `POST /v1/qr`, which supports every option; the
+ * `GET /v1/qr` variant has no method yet (add one if it's needed).
  *
  * @example
  * const qr = createQrApiClient({ apiKey: process.env.QR_API_KEY })

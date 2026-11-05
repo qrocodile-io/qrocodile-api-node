@@ -74,17 +74,41 @@ code by hand, then use its "Copy JSON" button and paste the result straight in.
 
 ## Errors
 
-Each helper resolves to the data directly and throws `QrApiError` (with `status` and
-`code`) on an API error response, so handle failures with `try/catch`:
+Each helper resolves to the data directly and rejects on failure, so handle errors with
+`try/catch`. There are three outcomes, and they are distinguishable:
+
+| what happened                                      | what you get                               |
+| -------------------------------------------------- | ------------------------------------------ |
+| the API answered with one of its documented errors | `QrApiError` — carries `status` and `code` |
+| any other error response (gateway, empty body)     | `QrApiResponseError` — carries `status`    |
+| the request never completed (offline, DNS)         | the underlying `fetch` error, untouched    |
 
 ```ts
-import { createQrApiClient, QrApiError } from '@qrocodile/api'
+import { createQrApiClient, QrApiError, QrApiResponseError } from '@qrocodile/api'
 
 try {
   const svg = await qr.renderSvg({ content: 'https://qrocodile.io', design: { preset: 'ocean' } })
 } catch (err) {
-  if (err instanceof QrApiError) console.error(err.status, err.code, err.message)
+  if (err instanceof QrApiError) {
+    // The API described this failure itself — branch on `code`.
+    console.error(err.status, err.code, err.message)
+  } else if (err instanceof QrApiResponseError) {
+    // Something answered, but not the API: a gateway error page, an empty body from a load
+    // balancer. There is no `code` to branch on, only `status`.
+    console.error(err.status, err.message)
+  } else {
+    throw err // never reached the API
+  }
 }
+```
+
+`QrApiError` **extends** `QrApiResponseError`, so check it first — the order above matters,
+and reversing it would swallow every documented API error into the second branch. The
+upside of the hierarchy is that code which only cares about the status can catch the base
+and cover both:
+
+```ts
+if (err instanceof QrApiResponseError && err.status >= 500) return retry()
 ```
 
 `code` is a union of the API's documented failure codes, derived from the spec — so a
@@ -92,8 +116,9 @@ try {
 error rather than a branch that quietly stops matching. Branch on `code`, not `message`:
 the message is written for a human and may be reworded.
 
-Genuine network failures (offline, DNS, aborted) reject with the underlying `fetch` error
-instead — they never reached the API, so there is no status or code.
+A code the API adds _before_ this package catches up still arrives as a normal `QrApiError`
+rather than being rejected — the client checks that `code` is present, not that it is one it
+already knows about, so an upstream addition never breaks your application.
 
 ## Other environments
 
