@@ -5,7 +5,14 @@ usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breakin
 
 ## Unreleased
 
+### Added
+
+- The `retroConsole` preset and the `knit` module style, which the API now offers.
+
 ### Changed
+
+- **Breaking:** the `christmas` preset is now called `christmasSweater`, as in the API. Code
+  passing `preset: 'christmas'` no longer type-checks; rename it to `christmasSweater`.
 
 - The type documentation now matches the deployed API. Colours (`moduleColor`, `background`)
   are `#rgb` or `#rrggbb`; the API no longer accepts `#rrggbbaa`. The link in the
