@@ -5,13 +5,13 @@
  *   QR_API_URL=http://localhost:3002 node examples/signup.ts you@example.com
  *
  * Flow: register an email → a 6-digit code arrives in your inbox → paste it here → the script
- * prints your key to stdout (so it's pipeable: `signup you@example.com > key.txt`). All
+ * prints your key to stdout, so `… > key.txt` captures just the key. All
  * prompts and messages go to stderr.
  *
  * Non-interactive: pass the email as arg 1 and, once you have it, the code as arg 2.
  *
- * The API emails a code rather than a link because mail-security appliances prefetch links and
- * burn single-use tokens before a human ever clicks (docs/qrocodile-auth-concept.md).
+ * The API emails a code rather than a link because mail-security appliances prefetch links, which
+ * uses up a single-use token before a human ever clicks.
  */
 import { stderr, stdin } from 'node:process'
 import { createInterface } from 'node:readline/promises'
@@ -31,7 +31,7 @@ function codeFrom(input: string): string {
   return input.replace(/\D/g, '').slice(0, 6)
 }
 
-// The helpers throw QrApiError (extends Error) on an API error response.
+// The client's methods throw QrApiError (extends Error) when the API responds with an error.
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
@@ -53,7 +53,7 @@ try {
   rl?.close()
   process.exit(1)
 }
-console.error('✓ Email sent. It carries a 6-digit code — enter it here to reveal your API key.')
+console.error('✓ Email sent. Enter the 6-digit code from it to reveal your API key.')
 
 const code = codeFrom(process.argv[3] ?? (await ask('6-digit code: ')))
 if (code.length !== 6) {
@@ -73,13 +73,15 @@ try {
 } catch (err) {
   rl?.close()
   console.error(`✗ Confirmation failed: ${errMessage(err)}`)
-  console.error('  Five wrong codes burn the pending signup — register again to get a new one.')
+  console.error(
+    '  After five wrong codes the signup is no longer valid. Register again to get a new code.',
+  )
   process.exit(1)
 }
 rl?.close()
 
 if (replaced) {
-  console.error('\n! This replaced an existing key for that address — the old one no longer works.')
+  console.error('\n! This replaced the existing key for that address. The old one no longer works.')
 }
-console.error('\n✓ Your API key (store it now — it is not shown again):\n')
+console.error('\n✓ Your API key (store it now; it is not shown again):\n')
 console.log(apiKey) // stdout only, so it can be piped/captured

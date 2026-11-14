@@ -2,9 +2,9 @@
  * Generate a QR code with a centered logo via the QRocodile QR Code API.
  *
  * Two kinds of logo, chosen automatically from the 2nd argument:
- *   • a path to an image file (.png / .jpg / .svg) → embedded as a CUSTOM logo
+ *   • a path to an image file (.png / .jpg / .svg) → embedded as a custom logo
  *     (base64, validated + sanitized server-side; no URL fetching)
- *   • anything else → treated as a BUILT-IN logo id (e.g. website, wifi, email)
+ *   • anything else → treated as a built-in logo id (e.g. website, wifi, email)
  *
  *   QR_API_KEY=qk_live_… node examples/logo.ts "https://qrocodile.io" ./logo.png png
  *   QR_API_KEY=… node examples/logo.ts "https://qrocodile.io" website svg
@@ -47,8 +47,8 @@ async function buildLogo(): Promise<DesignLogo> {
     // the mime, size, and dimensions, and sanitizes SVGs before embedding.
     return { data: `data:${mime};base64,${base64}`, regionWidth: 0.25 }
   }
-  // Not a file → a built-in logo id. Validated against the API's registry server-side
-  // (a wrong id returns a clean 400), so we cast the runtime string to the id union.
+  // Not a file → a built-in logo id. The API rejects an unknown id with a 400, so casting the
+  // runtime string to the id union is safe.
   return { id: logoArg, color: '#111111', regionWidth: 0.25 } as DesignLogo
 }
 

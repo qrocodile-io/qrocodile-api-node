@@ -1,18 +1,17 @@
-// Regenerate `src/openapi.d.ts` from the QR Render API's OpenAPI document.
+// Regenerate `src/openapi.d.ts` from the QRocodile QR Code API's OpenAPI document.
 //
 //   node scripts/codegen.mjs           rewrite src/openapi.d.ts in place
 //   node scripts/codegen.mjs --check   compare instead of writing; exit 1 on drift
 //
 // The document is fetched from the live API. Inside the monorepo this used to be dumped
-// from the Fastify app in memory — no server, no network — but that is not available here,
+// from the Fastify app in memory (no server, no network), but that is not available here,
 // and fetching has one property the dump did not: it describes the API as **deployed**,
 // which is the only API a published client can actually talk to.
 //
 // The cost is that `--check` now answers a slightly different question. It no longer fails
 // when someone edits the API's source; it fails once that edit is deployed. Drift is caught
 // after release rather than before merge, so this is worth running on a schedule and not
-// only on push. A versioned spec artifact would restore the pre-merge guarantee — see the
-// `qrocodile-openapi` plan in the monorepo's docs.
+// only on push. A versioned spec artifact would restore the pre-merge guarantee.
 //
 // The Prettier pass is not cosmetic. `--check` compares the generated text against the
 // committed file byte for byte, and openapi-typescript's own formatting differs from this
@@ -35,7 +34,7 @@ async function fetchSpec() {
         `(HTTP ${response.status}). Point QR_API_SPEC_URL at another deployment to override.`,
     )
   }
-  // Re-serialised rather than passed through, so a change in the server's whitespace or key
+  // Re-serialized rather than passed through, so a change in the server's whitespace or key
   // order cannot show up as drift in the generated types.
   return JSON.stringify(await response.json(), null, 2)
 }

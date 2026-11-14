@@ -24,10 +24,10 @@ const format = process.argv[3] === 'svg' ? 'svg' : 'png'
 
 const qr = createQrApiClient({ apiKey, baseUrl })
 
-// `design.preset` (and style/logo ids) are typed literal unions — your editor
+// `design.preset` (and style/logo ids) are typed literal unions, so your editor
 // autocompletes the valid values. Swap 'ocean' for any preset the API supports.
-// The method name picks the output format, so there's no path or `parseAs` to get right —
-// the helper resolves to the image directly and throws QrApiError on an error response.
+// The method name picks the output format. It returns the image, and throws QrApiError when
+// the API responds with an error.
 const input: RenderInput = {
   content,
   design: { preset: 'ocean' },

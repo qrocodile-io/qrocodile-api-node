@@ -15,8 +15,8 @@ import {
  * Compile-time guard on the published surface.
  *
  * `expectTypeOf` assertions are checked by `tsc --noEmit` (the `typecheck` script), not at
- * runtime — the same mechanism `apps/qr-api/src/schemas/design.test.ts` uses. Vitest runs the
- * file so the `it` blocks report, but the real failure is a type error.
+ * runtime. Vitest runs the file so the `it` blocks report, but the real failure is a type
+ * error.
  *
  * The point is that a breaking change to this package's API has to be *deliberate*. Every
  * method signature here is one a consumer writes code against, and several are asserted
@@ -103,8 +103,8 @@ describe('errors', () => {
   })
 
   /**
-   * A closed union, not `string` — that is what makes an exhaustive `switch` possible in
-   * consumer code and turns an API-side change into a compile error there.
+   * A closed union, not `string`: that is what lets consumer code check each `case` against
+   * the real codes, and catch an unhandled one with a `never` default.
    */
   it('keeps QrApiErrorCode a closed union', () => {
     expectTypeOf<QrApiErrorCode>().not.toEqualTypeOf<string>()

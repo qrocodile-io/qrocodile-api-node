@@ -68,6 +68,6 @@ jobs:
           QR_API_KEY: ${{ secrets.QR_API_KEY }}
           # Whether the integration suite is allowed to skip. Pull requests from forks get no
           # secrets, so requiring the key there would fail every outside contributor's first
-          # PR for something they cannot fix. Everywhere else — our own PRs, pushes to main,
-          # the nightly run — a missing secret has to fail rather than silently skip.
+          # PR for something they cannot fix. Everywhere else (our own PRs, pushes to main,
+          # the nightly run), a missing secret has to fail rather than silently skip.
           QR_API_INTEGRATION_REQUIRED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
