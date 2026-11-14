@@ -57,6 +57,78 @@ tsup emits `dist/` (ESM + CJS + rolled-up `.d.ts`), then `scripts/check-dts.mjs`
 build if the declarations reference anything outside the package or re-export the generated
 types.
 
+## Dependencies
+
+### `@types/node` tracks `engines.node`, not the newest release
+
+`engines.node` is `>=20`, so the typings are pinned to the Node 20 line. Developing against
+`@types/node@24` — which is what a plain `^` range drifts to — type-checks APIs a supported
+consumer's runtime does not have, and the mismatch then surfaces at _their_ runtime instead
+of in this build. `pnpm outdated` reports this several majors behind; that is the correct
+state here, not a bump waiting to be applied.
+
+The pin is `~20.19.0` and not `~20.0.0`, which is what "match the floor" would suggest.
+`@types/node@20.0.0` predates the global `fetch`, `Response` and `Request` declarations and
+does not type-check this package at all — the typings lagged what Node 20.0.0 itself
+shipped. `~20.19.0` is the tightest bound that actually works. It covers everything added
+_across_ the 20 line, so an API introduced in, say, 20.12 still type-checks even though the
+declared floor is 20.0.0. The types cannot close that gap; a lint rule does (see below).
+
+Check the pin rather than trusting it, by reaching for an API with a known arrival:
+
+```bash
+printf "import { glob } from 'node:fs/promises'\nvoid glob\n" > /tmp/probe.ts
+pnpm exec tsc --noEmit --types node --module node16 --moduleResolution node16 /tmp/probe.ts
+```
+
+`fs/promises`' `glob` arrived in Node 22, so that must fail. Under the previous `^24` range
+it type-checked cleanly, which was the bug — as did `node:sqlite`, added in Node 22.5.
+
+Raise this only when `engines.node` is raised, which is breaking for consumers and belongs in
+its own release.
+
+### Tooling on one Node, tests on every supported line
+
+`.node-version` is the Node the tooling runs on: development, and the `validate` CI job that
+type-checks, lints, checks formatting and codegen, and builds. It is a current release, not
+the floor, because the toolchain does not run on old ones (pnpm 11 needs Node >= 22.13).
+`devEngines` declares the same version, so pnpm installs it and runs scripts on it.
+
+The `test` CI job runs the whole suite on every LTS line `engines.node` admits: 20, 22, 24
+and 26, each at its latest release. The odd-numbered lines are short-lived and not covered.
+The list is hard-coded, so when a new LTS line ships (28 in 2027), add it to the matrix. Two
+things keep those cells honest:
+
+- It starts vitest with `node` directly. `pnpm run test` would run on `devEngines`' Node,
+  making every cell the same version.
+- It uses pnpm's standalone build, which brings its own Node, so `pnpm install` and the
+  consumption test's `pnpm pack` work even on Node 20.
+
+The cells use each line's latest release, so `engines.node: >=20` is tested as 20.20, not
+20.0.0. vitest's vite needs Node >= 20.19, so the suite cannot go lower.
+
+The older releases are covered statically instead. `eslint-plugin-n`'s
+`n/no-unsupported-features/node-builtins` reads `engines.node` and fails lint when `src/`
+uses a Node built-in missing anywhere in that range, down to the minor version. That covers
+both imported modules (`node:sqlite`) and globals (`process.getBuiltinModule`,
+`AbortSignal.any`). The globals are only checked because the config declares them: the rule
+skips undeclared names, so removing that `languageOptions.globals` turns the rule blind to
+half of what it should catch. It applies to `src/` only: tooling, tests and examples run on
+`.node-version` and never ship. The rule treats some APIs as experimental for longer than
+Node's own docs do. That errs on the safe side; if it ever blocks something that is safe, add
+the API to the rule's `ignores` with a comment saying why, as is done for `fetch`, `Request`
+and `Response`.
+
+If the floor is ever raised, the `@types/node` pin must move with it. For `>=22` that means
+`~22.20.0`, not `~22.0.0`: early 22.x typings have a `Buffer`/`ArrayBufferLike` variance bug
+that breaks `examples/`.
+
+### Everything else
+
+Ordinary ranges, bumped as usual. `pnpm peers check` after any major upgrade — a caret range
+that exceeds a peer's declared support is a breakage scheduled for whenever the lockfile is
+next refreshed.
+
 ## Tests
 
 ```bash
