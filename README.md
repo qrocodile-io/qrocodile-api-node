@@ -1,12 +1,12 @@
 # @qrocodile/api
 
-Typed TypeScript client for the [QRocodile QR Code API](https://qrocodile.io/en/qr-code-api/) —
-generate styled QR codes (SVG or PNG) from content plus a design config.
+Typed TypeScript client for the [QRocodile QR Code API](https://qrocodile.io/en/qr-code-api/).
+It generates styled QR codes (SVG or PNG) from content plus a design config.
 
-Every body field and design id — presets, module and finder styles, palettes, logos,
-halos — is fully typed and autocompleted, and stays in step with the API.
+Every body field and design id (presets, module and finder styles, palettes, logos,
+halos) is fully typed and autocompleted, with types generated from the API’s OpenAPI spec.
 
-Ships ESM and CommonJS, with bundled type declarations. Node 20 or newer.
+It ships ESM and CommonJS with bundled type declarations, and needs Node 20 or newer.
 
 ## Install
 
@@ -14,15 +14,11 @@ Ships ESM and CommonJS, with bundled type declarations. Node 20 or newer.
 npm i @qrocodile/api
 ```
 
-## Use it server-side only
+## Keep your API key secret
 
-Your API key is a secret. The API does not permit browser calls to the render endpoints —
-CORS deliberately withholds the `Authorization` header — so a key in front-end code would
-not work anyway, but the important part is that it must never be shipped to a browser at
-all. Keep this client in your server, and proxy from your front end if you need to.
-
-`confirmKey` returns the key in plaintext, which is a second reason to keep the signup flow
-off the client.
+Your API key must never reach a browser. Browsers cannot call the render endpoints anyway,
+because CORS withholds the `Authorization` header. If a web page needs QR codes, render them
+in code you control and hand the result to the page.
 
 ## Get an API key
 
@@ -34,12 +30,12 @@ import { createQrApiClient } from '@qrocodile/api'
 
 const qr = createQrApiClient()
 await qr.registerKey('you@example.com')
-// → a 6-digit code arrives by email; exchange it for the key, which is shown exactly once:
+// → a 6-digit code arrives by email; exchange it for the key:
 const { apiKey, replaced } = await qr.confirmKey('123456', { email: 'you@example.com' })
 ```
 
-Registering an address that already has a key is how you replace a lost one: confirming
-rotates it, `replaced` comes back `true`, and the old key stops working immediately.
+To replace a lost or leaked key, register the same email address again. Confirming issues a
+new key, `replaced` comes back `true`, and the old key stops working immediately.
 
 You can also get a key from the [API page](https://qrocodile.io/en/qr-code-api/) without
 writing any code.
@@ -49,13 +45,13 @@ writing any code.
 ```ts
 import { createQrApiClient } from '@qrocodile/api'
 
-// Base URL defaults to https://api.qrocodile.io — just pass your key.
+// Only the key is needed; the base URL defaults to https://api.qrocodile.io.
 const qr = createQrApiClient({ apiKey: process.env.QR_API_KEY })
 
 // SVG (string) from simple content + a preset
 const svg = await qr.renderSvg({ content: 'https://qrocodile.io', design: { preset: 'ocean' } })
 
-// PNG (ArrayBuffer) with a full design. Payload formats are strings you build yourself —
+// PNG (ArrayBuffer) with a full design. Payload formats are strings you build yourself:
 // the API encodes `content` exactly as given.
 const png = await qr.renderPng({
   content: 'WIFI:T:WPA;S:Cafe;P:latte123;;',
@@ -63,19 +59,18 @@ const png = await qr.renderPng({
 })
 ```
 
-There are two render methods, one per output: `renderSvg` returns a `string`, `renderPng`
-returns an `ArrayBuffer` — so there's no path or `parseAs` to get right. Both take the same
-input: `content` (the string to encode) plus optional `design` (the full QrDesignConfig),
-`size`, and `fixContrast`. They call `POST /v1/qr`, which supports every option (the
-`GET /v1/qr` variant has no method yet).
+There are two render methods, one per output: `renderSvg` returns a `string`, and `renderPng`
+returns an `ArrayBuffer`. Both take the same input: `content` (the string to encode) plus
+optional `design` (the full QrDesignConfig), `size`, and `fixContrast`. They call
+`POST /v1/qr`, which supports every option (the `GET /v1/qr` variant has no method yet).
 
-The quickest way to build a `design` is the [QR Designer](https://qrocodile.io/en/) — style a
-code by hand, then use its "Copy JSON" button and paste the result straight in.
+To build a `design`, style a QR code by hand in the [QR Designer](https://qrocodile.io/en/),
+then use its “Copy JSON” button and paste the result in.
 
 ## Errors
 
-Each helper resolves to the data directly and throws `QrApiError` (with `status` and
-`code`) on an API error response, so handle failures with `try/catch`:
+When the API responds with an error, every method throws a `QrApiError` with `status` and
+`code`. Handle failures with `try/catch`:
 
 ```ts
 import { createQrApiClient, QrApiError } from '@qrocodile/api'
@@ -87,23 +82,18 @@ try {
 }
 ```
 
-`code` is a union of the API's documented failure codes, derived from the spec — so a
-`switch` over it is exhaustive, and a code the API adds or drops surfaces as a compile
-error rather than a branch that quietly stops matching. Branch on `code`, not `message`:
-the message is written for a human and may be reworded.
+Branch on `code`, not `message`: the message is written for people and may be reworded.
+`code` is typed with every error code the API documents (`'RATE_LIMITED'`, `'UNAUTHORIZED'`,
+…), so your editor completes them and TypeScript rejects a misspelled one. When an update of
+this package removes a code, a `case` for it stops compiling; to be told about added codes as
+well, end the `switch` with a `default` that assigns `code` to `never`.
 
-Genuine network failures (offline, DNS, aborted) reject with the underlying `fetch` error
-instead — they never reached the API, so there is no status or code.
-
-## Other environments
-
-```ts
-createQrApiClient({ apiKey, baseUrl: 'http://localhost:3002' })
-```
+Network failures (offline, DNS, aborted) reject with the underlying `fetch` error instead.
+They never reached the API, so there is no status or code.
 
 ## Full API documentation
 
-Endpoint reference, design-config fields, error tables and rate limits:
+Endpoint reference, design-config fields, error tables, and rate limits:
 [qrocodile.io/en/qr-code-api/](https://qrocodile.io/en/qr-code-api/) and the OpenAPI UI at
 [api.qrocodile.io/docs](https://api.qrocodile.io/docs).
 

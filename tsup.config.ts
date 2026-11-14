@@ -17,7 +17,7 @@ export default defineConfig({
   format: ['esm', 'cjs'],
   platform: 'node',
   // Matches the `engines.node` floor (>=20). The package needs little more than global
-  // `fetch`, which is unflagged from 20 on.
+  // `fetch`, which Node has had unflagged since 18.
   target: 'node20',
   dts: true,
   sourcemap: true,

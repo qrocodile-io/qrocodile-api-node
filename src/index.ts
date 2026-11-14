@@ -31,13 +31,14 @@ export type RenderInput = Omit<
   'format'
 >
 
+// Derived from the spec rather than written out here: the API declares `error.code` as a
+// closed enum, which arrives in the generated types as a union.
 /**
- * Every failure code the API can return.
+ * Every error code the API documents.
  *
- * Derived from the spec rather than written out here, so it cannot fall behind: the API declares
- * `error.code` as a closed enum, which arrives in the generated types as a union. A `switch` over
- * this is exhaustive, and a code the API drops or adds becomes a compile error in consumer code
- * instead of a branch that silently stops matching.
+ * A `case` for a code that does not exist fails to compile. To be told about codes added in a
+ * later version of this package as well, end the `switch` with a `default` that assigns the
+ * code to `never`.
  */
 export type QrApiErrorCode =
   operations['renderQrCodeWithDesign']['responses'][400]['content']['application/json']['error']['code']
@@ -46,21 +47,21 @@ export type QrApiErrorCode =
 export type RegisterKeyResult =
   operations['registerKey']['responses'][202]['content']['application/json']
 
-/** What {@link createQrApiClient}'s `confirmKey` resolves to — the key, plus whether it replaced one. */
+/** What {@link createQrApiClient}'s `confirmKey` resolves to: the key, and whether it replaced one. */
 export type ConfirmKeyResult =
   operations['confirmKey']['responses'][200]['content']['application/json']
 
 /**
- * Thrown by the client helpers when the API returns an error response (non-2xx).
- * Genuine network failures (offline, DNS, aborted) reject with the underlying `fetch`
- * error instead — they never reached the API, so there is no status or code.
+ * Thrown when the API responds with an error (non-2xx).
+ * Network failures (offline, DNS, aborted) reject with the underlying `fetch` error instead.
+ * They never reached the API, so there is no status or code.
  */
 export class QrApiError extends Error {
   /** HTTP status of the error response. */
   readonly status: number
   /**
-   * Machine-readable error code from the API's `{ error: { code, message } }` body. Stable, and
-   * the field to branch on — `message` is written for a human and may be reworded.
+   * Machine-readable error code from the API's `{ error: { code, message } }` body. It is stable,
+   * so branch on it: `message` is written for people and may be reworded.
    */
   readonly code: QrApiErrorCode
 
@@ -109,12 +110,11 @@ async function unwrap<T>(
 /**
  * Create a typed client for the QRocodile QR Code API.
  *
- * Render helpers spare you the raw path, HTTP verb, and `parseAs` juggling: pick the
- * output format by method name and the return type follows (SVG → `string`, PNG →
- * `ArrayBuffer`). Each helper resolves to the data directly and throws {@link QrApiError}
- * on an API error response, so you handle failures with `try/catch` (which also plays well
- * with TanStack Query / SWR). The render helpers use `POST /v1/qr`, which supports every
- * option; the `GET /v1/qr` variant has no method yet (add one if it's needed).
+ * The method picks the output format, and the return type follows: `renderSvg` returns a
+ * `string`, `renderPng` an `ArrayBuffer`. Every method throws a {@link QrApiError} when the
+ * API responds with an error, so handle failures with `try/catch` (which also suits TanStack
+ * Query and SWR). The render methods call `POST /v1/qr`, which supports every option; the
+ * `GET /v1/qr` variant has no method yet.
  *
  * @example
  * const qr = createQrApiClient({ apiKey: process.env.QR_API_KEY })
@@ -144,7 +144,7 @@ export function createQrApiClient(options: QrApiClientOptions = {}) {
   return {
     /**
      * Render an SVG string (`POST /v1/qr`). Pass content plus an optional design:
-     * a bare `{ content: 'https://…' }` yields a plain code, and the full QrDesignConfig
+     * a bare `{ content: 'https://…' }` yields a plain QR code, and the full QrDesignConfig
      * (presets, styles, colors, logo…) goes under `design`.
      */
     renderSvg(input: RenderInput): Promise<string> {
@@ -173,8 +173,8 @@ export function createQrApiClient(options: QrApiClientOptions = {}) {
      * Exchange the emailed code for the key (`POST /v1/keys/confirm`). Identify the pending
      * signup by the address it was sent to, or by the `rid` the verification link carries.
      *
-     * Registering an address that already has a key rotates it: confirming issues a fresh key
-     * and revokes the old one, and the old key keeps working until then.
+     * To replace a lost or leaked key, register the same address again and confirm here. That
+     * issues a new key and revokes the old one, which keeps working until you confirm.
      */
     confirmKey(
       code: string,

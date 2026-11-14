@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createQrApiClient, QrApiError } from '../src/index.ts'
 
 /**
- * Integration level: these hit the real QR Render API over the network.
+ * Integration level: these hit the real QRocodile QR Code API over the network.
  *
  * Everything else in this package is mocked, which means everything else would still pass if
  * the API changed its response shape, its error envelope, or its auth scheme. This suite is
@@ -72,7 +72,7 @@ describe.skipIf(!apiKey)('against the live API', () => {
   })
 
   /**
-   * Proves the error envelope the client unwraps is the envelope the API actually sends —
+   * Proves the error envelope the client unwraps is the envelope the API actually sends:
    * `{ error: { code, message } }`, with a code from the documented union. A shape change
    * here would surface in consumer code as `undefined` reaching `err.code`.
    */

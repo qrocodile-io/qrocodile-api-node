@@ -2,7 +2,7 @@
 //
 // Two distinct hazards, both invisible in this repo and fatal on a consumer's disk:
 //
-//  1. `src/openapi.d.ts` is generated, internal, and not in `files` — so it is not
+//  1. `src/openapi.d.ts` is generated, internal, and not in `files`, so it is not
 //     published. Every type the public surface derives from it (`RenderInput`,
 //     `QrApiErrorCode`) has to be *inlined* by the declaration rollup. A surviving
 //     `import('./openapi.d.ts')` type-checks perfectly here and resolves to nothing once
@@ -11,12 +11,12 @@
 //     described in src/index.ts: consumers would start depending on generated names that
 //     change shape whenever the API's OpenAPI document does.
 //
-// `openapi-fetch` is the one allowed external specifier — it is a real runtime dependency,
+// `openapi-fetch` is the one allowed external specifier: it is a real runtime dependency,
 // declared in `dependencies`, so a consumer resolves it normally.
 //
-// Both emitted declaration files are checked. They are byte-identical today, but the ESM and
-// CJS declaration rollups are separate build outputs and only one of them is what a
-// `require()` consumer resolves — checking a single file would leave that path unguarded.
+// Both emitted declaration files are checked. The ESM and CJS declaration rollups are
+// separate build outputs, and only one of them is what a `require()` consumer resolves, so
+// checking a single file would leave that path unguarded.
 import { readFileSync } from 'node:fs'
 
 const DTS_PATHS = ['dist/index.d.ts', 'dist/index.d.cts']

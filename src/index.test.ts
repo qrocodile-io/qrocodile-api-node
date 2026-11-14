@@ -126,7 +126,7 @@ describe('error handling', () => {
 
   /**
    * A request that never reached the API has no status and no error code, so wrapping it in
-   * QrApiError would invent both. It propagates untouched — documented behaviour, and the
+   * QrApiError would invent both. It propagates untouched — documented behavior, and the
    * reason `instanceof QrApiError` is a meaningful check rather than a formality.
    */
   it('lets genuine network failures through unwrapped', async () => {
@@ -190,7 +190,7 @@ describe('base url', () => {
     expect((spy.mock.calls[0]?.[0] as Request).url).toBe('https://api.qrocodile.io/v1/qr')
   })
 
-  it('honours an override', async () => {
+  it('honors an override', async () => {
     const spy = stubFetch(new Response('<svg/>'))
 
     await createQrApiClient({ apiKey: KEY, baseUrl: 'http://localhost:3002' }).renderSvg({
