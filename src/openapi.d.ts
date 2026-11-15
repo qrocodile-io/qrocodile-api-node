@@ -547,6 +547,8 @@ export interface operations {
           | 'brixx'
           | 'tetris'
           | 'retroConsole'
+          | 'cityLights'
+          | 'goldenHour'
           | 'bubbles'
           | 'botanical'
           | 'autumn'
@@ -558,6 +560,10 @@ export interface operations {
           | 'rainyDay'
           | 'blocky'
           | 'christmasSweater'
+          | 'snowfall'
+          | 'winterNight'
+          | 'gingerbread'
+          | 'christmasTree'
           | 'valentines'
           | 'icy'
           | 'summer'
@@ -640,6 +646,10 @@ export interface operations {
       /** @description The rendered QR code image — SVG or PNG per the requested `format`. The response `Content-Type` names the format actually returned and is authoritative. */
       200: {
         headers: {
+          /** @description Opens the rendered code (design and content) in the QR Designer, as `<url>; rel="edit-form"`. Sent only when the link reproduces the code exactly; otherwise `x-designer-url-unavailable` is sent instead. */
+          link?: string
+          /** @description Why there is no `link`: a comma-separated list of what the link cannot carry. Each item is a design config path such as `logo`, `content` for content the link cannot reproduce or fit, or `design` when the design alone makes the link too long. Sent only without a `link`. */
+          'x-designer-url-unavailable'?: string
           /** @description Requests allowed in the current window. */
           'x-ratelimit-limit'?: number
           /** @description Requests still allowed in the current window. */
@@ -866,6 +876,8 @@ export interface operations {
               | 'brixx'
               | 'tetris'
               | 'retroConsole'
+              | 'cityLights'
+              | 'goldenHour'
               | 'bubbles'
               | 'botanical'
               | 'autumn'
@@ -877,6 +889,10 @@ export interface operations {
               | 'rainyDay'
               | 'blocky'
               | 'christmasSweater'
+              | 'snowfall'
+              | 'winterNight'
+              | 'gingerbread'
+              | 'christmasTree'
               | 'valentines'
               | 'icy'
               | 'summer'
@@ -978,6 +994,10 @@ export interface operations {
               | 'flourish'
               | 'spooky'
               | 'knit'
+              | 'bokeh'
+              | 'snowfall'
+              | 'gingerbread'
+              | 'christmas-tree'
               | 'leaves'
               | 'characters'
               | 'brixx'
@@ -1022,6 +1042,7 @@ export interface operations {
               | 'brush'
               | 'wobbly'
               | 'carved'
+              | 'bokeh'
               | 'scribble'
               | 'drip'
               | 'eroded'
@@ -1386,6 +1407,10 @@ export interface operations {
       /** @description The rendered QR code image — SVG or PNG per the requested `format`. The response `Content-Type` names the format actually returned and is authoritative. */
       200: {
         headers: {
+          /** @description Opens the rendered code (design and content) in the QR Designer, as `<url>; rel="edit-form"`. Sent only when the link reproduces the code exactly; otherwise `x-designer-url-unavailable` is sent instead. */
+          link?: string
+          /** @description Why there is no `link`: a comma-separated list of what the link cannot carry. Each item is a design config path such as `logo`, `content` for content the link cannot reproduce or fit, or `design` when the design alone makes the link too long. Sent only without a `link`. */
+          'x-designer-url-unavailable'?: string
           /** @description Requests allowed in the current window. */
           'x-ratelimit-limit'?: number
           /** @description Requests still allowed in the current window. */
