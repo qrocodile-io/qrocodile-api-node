@@ -5,6 +5,8 @@ usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breakin
 
 ## Unreleased
 
+## 0.2.0 - 2026-11-21
+
 ### Added
 
 - The `retroConsole` preset and the `knit` module style, which the API now offers.
