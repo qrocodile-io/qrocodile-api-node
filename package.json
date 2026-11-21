@@ -62,7 +62,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "pnpm run lint:eslint && pnpm run lint:changelog",
+    "lint:eslint": "eslint .",
+    "lint:changelog": "changelog-keeper lint",
     "prepack": "pnpm run build",
     "codegen": "node scripts/codegen.mjs",
     "codegen:check": "node scripts/codegen.mjs --check",
@@ -72,6 +74,7 @@
     "logo": "node examples/logo.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "version": "changelog-keeper verify || (git checkout -- package.json && exit 1)",
     "postversion": "git push --follow-tags"
   },
   "dependencies": {
@@ -79,6 +82,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@qqilihq/changelog-keeper": "0.1.0-beta.3",
     "@types/node": "~20.19.0",
     "eslint": "^9.39.4",
     "eslint-plugin-import": "^2.32.0",

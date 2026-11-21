@@ -196,11 +196,18 @@ Provenance (proof of which commit and which workflow run produced the tarball, s
 npm page) comes automatically with that, which is why no `--provenance` flag appears. It
 cannot be produced from a laptop, and cannot be added to a version afterwards.
 
-**Add the entry to `CHANGELOG.md` before bumping.** The workflow reads the section under
-`## <version>` and uses it as the GitHub release notes, and it checks for that section
-_before_ publishing. A version with nothing written about it fails the release while
-re-tagging is still possible, rather than landing on npm with an empty release page. The
-error tells you how to move the tag.
+**Add the entry to `CHANGELOG.md` before bumping.** Move the entries under `## Unreleased`
+to a new `## X.Y.Z - YYYY-MM-DD` section and commit. The changelog follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
+[changelog-keeper](https://github.com/qqilihq/changelog-keeper) enforces it: `pnpm run lint`
+checks the structure, and `pnpm version` runs `changelog-keeper verify`, which undoes the
+bump and stops before committing or tagging when the new version has no section or
+`## Unreleased` still has entries.
+
+The workflow uses that section as the GitHub release notes, and extracts it _before_
+publishing. A tag made without `pnpm version` and with nothing written about it fails the
+release while re-tagging is still possible, rather than landing on npm with an empty release
+page. The error tells you how to move the tag.
 
 The release is created automatically once the publish succeeds, so the changelog is the only
 place release notes are written.
