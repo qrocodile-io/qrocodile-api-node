@@ -558,6 +558,8 @@ export interface operations {
           | 'circuit'
           | 'connected'
           | 'rainyDay'
+          | 'koiPond'
+          | 'inkPond'
           | 'blocky'
           | 'christmasSweater'
           | 'snowfall'
@@ -887,6 +889,8 @@ export interface operations {
               | 'circuit'
               | 'connected'
               | 'rainyDay'
+              | 'koiPond'
+              | 'inkPond'
               | 'blocky'
               | 'christmasSweater'
               | 'snowfall'
@@ -1027,6 +1031,7 @@ export interface operations {
               | 'petals'
               | 'variedDots'
               | 'ripple'
+              | 'koi-pond'
               | 'isometric'
             /** @description Tuning parameters for the module style. Which keys it accepts depends on the style: the [QR Designer](https://qrocodile.io/en/) exposes them as that style’s own sliders, and they are tabulated per style on the [API page](https://qrocodile.io/en/qr-code-api/). A value outside the range or options the style declares is refused. An unrecognized key is ignored rather than rejected — a style that drops a parameter should not break a stored design — though a key over 64 characters is refused. */
             moduleStyleParams?: {

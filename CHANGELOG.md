@@ -11,6 +11,8 @@ usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breakin
 - The `cityLights`, `goldenHour`, `snowfall`, `winterNight`, `gingerbread` and
   `christmasTree` presets, the `bokeh`, `snowfall`, `gingerbread` and `christmas-tree`
   module styles, and the `bokeh` finder style, which the API now offers.
+- The `koiPond` and `inkPond` presets and the `koi-pond` module style, which the API now
+  offers.
 
 ### Changed
 
