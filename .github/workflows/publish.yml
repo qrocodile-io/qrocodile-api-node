@@ -75,11 +75,24 @@ jobs:
           echo "Publishing $version under dist-tag '$TAG' (prerelease: $PRE)."
 
       # Deliberately before the publish, not after. A version with nothing written about it
-      # should stop the release while re-tagging is still possible — once it is on npm it
+      # should stop the release while re-tagging is still possible: once it is on npm it
       # cannot be unpublished, and the release page would be the only place left to say what
-      # changed. The script's error explains how to move the tag.
+      # changed. `pnpm version` already refuses such a version (the `version` script runs
+      # `changelog-keeper verify`), so this only catches a tag made some other way.
       - name: Take the release notes from the changelog
-        run: node scripts/changelog-section.mjs "$version" > "$RUNNER_TEMP/release-notes.md"
+        run: |
+          if ! pnpm exec changelog-keeper extract "$version" > "$RUNNER_TEMP/release-notes.md"; then
+            echo ""
+            echo "Every release needs to say what changed: the GitHub release notes are this"
+            echo "section, and npm links people here. Add the entry, then move the tag:"
+            echo ""
+            echo "  # edit CHANGELOG.md"
+            echo "  git commit -am \"Changelog for $version\""
+            echo "  git tag -fa v$version -m \"$version\" && git push --force origin v$version"
+            echo ""
+            echo "Nothing has been published at this point, so re-tagging is safe."
+            exit 1
+          fi
 
       # Already published is not a failure: it means this job was retried after succeeding.
       # But anything other than a 404 is a real error and must not be read as "not published

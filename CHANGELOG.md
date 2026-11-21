@@ -25,7 +25,7 @@ usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breakin
   style parameters outside a style’s declared range are refused. `finderUseModuleStyle` and
   `finderColorInherit` default to `false`. The types themselves are unchanged.
 
-## 0.1.1-beta.0
+## 0.1.1-beta.0 - 2026-09-08
 
 No functional changes — `dist/` is byte-identical to 0.1.0.
 
@@ -34,9 +34,17 @@ provenance attestation, and automatic creation of the GitHub release from this c
 Cut as a pre-release so it takes the `beta` dist-tag and `npm install @qrocodile/api`
 continues to resolve to 0.1.0.
 
-## 0.1.0
+## 0.1.0 - 2026-09-08
 
 First public release.
+
+The client is **server-side only.** The API key is a secret, and the API’s CORS deliberately
+withholds the `Authorization` header, so browser calls to the render endpoints fail by
+design.
+
+The design surface (presets, module and finder styles, palettes, logos, halos) is fully
+typed from the API’s OpenAPI document, so editor autocomplete matches what the deployed API
+actually accepts.
 
 ### Added
 
@@ -50,11 +58,3 @@ First public release.
   so a `case` for a code that does not exist fails to compile. Network failures that never
   reached the API reject with the underlying `fetch` error instead, untouched.
 - Dual ESM and CommonJS builds with bundled type declarations. Node 20 or newer.
-
-### Notes
-
-- **Server-side only.** The API key is a secret, and the API’s CORS deliberately withholds
-  the `Authorization` header, so browser calls to the render endpoints fail by design.
-- The design surface (presets, module and finder styles, palettes, logos, halos) is fully
-  typed from the API’s OpenAPI document, so editor autocomplete matches what the deployed API
-  actually accepts.

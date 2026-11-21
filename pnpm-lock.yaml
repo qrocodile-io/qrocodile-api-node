@@ -14,6 +14,9 @@ importers:
       '@eslint/js':
         specifier: ^9.39.4
         version: 9.39.5
+      '@qqilihq/changelog-keeper':
+        specifier: 0.1.0-beta.3
+        version: 0.1.0-beta.3
       '@types/node':
         specifier: ~20.19.0
         version: 20.19.43
@@ -437,6 +440,14 @@ packages:
       {
         integrity: sha512-Nm4s/jB+4FpFsPhWGEC4h7rzksesmtnMXomo6rCMcg/b8zLQuOziRgkCS1fxDCXOlJB/6Q8oABOZ/OP6RIPj9A==,
       }
+
+  '@qqilihq/changelog-keeper@0.1.0-beta.3':
+    resolution:
+      {
+        integrity: sha512-b/1/qyftTr0MwSKLUb/0gEkgw8HOpJoElsRSyOMe0vMeXKW1we2CNNMx3EfF1H1mStbtkJHvz77OrG0s4f9WLg==,
+      }
+    engines: { node: '>=22.12' }
+    hasBin: true
 
   '@redocly/ajv@8.11.2':
     resolution:
@@ -2321,6 +2332,14 @@ packages:
         integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==,
       }
 
+  marked@18.2.1:
+    resolution:
+      {
+        integrity: sha512-ii4bxCTCqqwpT86XZWgJNs+ZnAIZksmLGYMViWA7PDIXYIeNo1x6cDdX3JOip9NM/cI6p8z57FxliACboTruMA==,
+      }
+    engines: { node: '>= 20' }
+    hasBin: true
+
   math-intrinsics@1.1.0:
     resolution:
       {
@@ -2860,6 +2879,14 @@ packages:
     resolution:
       {
         integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==,
+      }
+    engines: { node: '>=10' }
+    hasBin: true
+
+  semver@7.8.6:
+    resolution:
+      {
+        integrity: sha512-9lpSSU4Mly3mrtruwLs1eLK6+gzbzqeBFwRNjIjE+9LuDpWdYctrQlQ3ej1Ilgi7gknpsTRnPoLP8DpCHqHIJw==,
       }
     engines: { node: '>=10' }
     hasBin: true
@@ -3552,6 +3579,11 @@ snapshots:
     optional: true
 
   '@oxc-project/types@0.148.0': {}
+
+  '@qqilihq/changelog-keeper@0.1.0-beta.3':
+    dependencies:
+      marked: 18.2.1
+      semver: 7.8.6
 
   '@redocly/ajv@8.11.2':
     dependencies:
@@ -4720,6 +4752,8 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  marked@18.2.1: {}
+
   math-intrinsics@1.1.0: {}
 
   minimatch@10.2.6:
@@ -5014,6 +5048,8 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.8.5: {}
+
+  semver@7.8.6: {}
 
   set-function-length@1.2.2:
     dependencies:
