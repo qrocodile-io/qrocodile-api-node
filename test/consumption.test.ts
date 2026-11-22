@@ -8,10 +8,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 /**
  * Consumption level: packs the real tarball and loads it the way an outside consumer would.
  *
- * Nothing else in this repository can catch what this catches. Every in-repo consumer
- * resolves `src/` through the workspace, so the `publishConfig` overlay, the `exports` map,
- * the dual ESM/CJS output and the `files` allowlist are all completely untested until a
- * tarball is installed somewhere that has none of our tooling. Those are exactly the things
+ * Nothing else in this repository can catch what this catches. Everything in-repo imports
+ * `src/` by relative path, so the `exports` map, the dual ESM/CJS output and the `files`
+ * allowlist are all completely untested until a tarball is installed somewhere that has none
+ * of our tooling. Those are exactly the things
  * that fail silently and only for other people.
  *
  * The consumer is assembled by hand rather than with `npm install` so the suite needs no
@@ -112,7 +112,7 @@ describe('the published tarball', () => {
   /**
    * npm renders both of these on the package page, so a link that 404s is worse than no link
    * at all — which is why they were absent until the public repo existed. Asserting they
-   * survive the `publishConfig` overlay and point somewhere a stranger can actually reach.
+   * survive packing and point somewhere a stranger can actually reach.
    */
   it('links back to a public source repo and issue tracker', () => {
     const manifest = JSON.parse(

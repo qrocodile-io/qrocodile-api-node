@@ -5,6 +5,14 @@ usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breakin
 
 ## Unreleased
 
+### Fixed
+
+- The package can be installed and used again. 0.2.0 and 0.1.1-beta.0 were published with
+  a manifest that pointed at `src/index.ts` instead of the built files in `dist/`, so
+  loading them failed in Node and type-checking failed in TypeScript
+  ([#7](https://github.com/qrocodile-io/qrocodile-api-node/issues/7)). The API is unchanged
+  from 0.2.0.
+
 ## 0.2.0 - 2026-11-21
 
 ### Added

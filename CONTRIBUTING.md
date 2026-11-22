@@ -218,8 +218,9 @@ A pre-release (`pnpm version prerelease --preid=beta`) publishes under its own d
 Publishing the same version twice is a no-op rather than a failure, so a retried job is safe.
 
 `prepublishOnly` runs the same checks locally, so a manual `npm publish` cannot ship stale
-types or a stale bundle either — it just gets no provenance.
+types or a stale bundle either. It just gets no provenance.
 
-The package is published to public npm as `@qrocodile/api`. `publishConfig` rewrites the
-manifest at pack time so the published entry points target `dist/` while local development
-keeps resolving `src/`.
+The package is published to public npm as `@qrocodile/api`. Its entry points (`main`,
+`module`, `types`, `exports`) target `dist/` directly in `package.json`. Keep them out of
+`publishConfig`: only pnpm applies those overrides, so `npm publish` would ship a manifest
+pointing at `src/`, which is how 0.1.1-beta.0 and 0.2.0 were published unusable.
