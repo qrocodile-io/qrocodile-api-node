@@ -3,7 +3,7 @@
 Notable changes to `@qrocodile/api`. Versions follow [SemVer](https://semver.org/), with the
 usual pre-1.0 caveat: while the major is `0`, a **minor** bump may carry breaking changes.
 
-## Unreleased
+## 0.2.1 - 2026-11-22
 
 ### Fixed
 
